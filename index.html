@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brasaland | Restaurante a la brasa</title>
+
+  <!-- SEO Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    "name": "Brasaland",
+    "description": "Cadena de restaurantes de comida a la brasa en Colombia y Estados Unidos",
+    "url": "https://brasaland.com",
+    "foundingDate": "2008",
+    "servesCuisine": "Grilled food, Colombian cuisine",
+    "priceRange": "$$",
+    "address": [
+      {
+        "@type": "PostalAddress",
+        "addressCountry": "CO",
+        "addressLocality": "Medellín",
+        "addressRegion": "Antioquia"
+      },
+      {
+        "@type": "PostalAddress",
+        "addressCountry": "US",
+        "addressLocality": "Miami",
+        "addressRegion": "FL"
+      }
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "telephone": "+57-4-123-4567",
+      "contactType": "customer service",
+      "availableLanguage": ["Spanish"]
+    },
+    "sameAs": [
+      "https://instagram.com/brasaland",
+      "https://facebook.com/brasaland"
+    ]
+  }
+  </script>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+<!-- HEADER -->
+<header class="bg-white shadow sticky top-0 z-50">
+  <nav class="max-w-6xl mx-auto flex justify-between items-center p-4">
+    
+    <h1 class="text-xl font-bold">Brasaland</h1>
+
+    <ul class="hidden md:flex gap-6">
+      <li><a href="#" class="hover:text-red-500">Inicio</a></li>
+      <li><a href="#locations" class="hover:text-red-500">Ubicaciones</a></li>
+      <li><a href="#" class="hover:text-red-500">Menú</a></li>
+      <li><a href="#points" class="hover:text-red-500">Brasa Points</a></li>
+      <li><a href="#contact" class="hover:text-red-500">Contacto</a></li>
+    </ul>
+
+    <a href="application.html" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+      Únete
+    </a>
+
+  </nav>
+</header>
+
+<main>
+
+<!-- HERO -->
+<section class="text-center py-20 px-4 bg-gradient-to-r from-red-100 to-yellow-100">
+  
+  <h2 class="text-4xl md:text-5xl font-bold mb-6">
+    El sabor de la brasa, en cada bocado
+  </h2>
+
+  <p class="max-w-2xl mx-auto mb-8 text-lg">
+    Desde 2008 sirviendo las mejores carnes a la brasa en Colombia y Estados Unidos. 
+    14 ubicaciones, una misma pasión por la calidad y el sabor.
+  </p>
+
+  <a href="application.html" 
+     class="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded shadow transition transform hover:scale-105">
+    Únete a Brasa Points
+  </a>
+
+</section>
+
+<!-- HISTORIA -->
+<section class="max-w-6xl mx-auto py-16 px-4 grid md:grid-cols-2 gap-8 items-center">
+
+  <div>
+    <h2 class="text-3xl font-bold mb-4">Nuestra Historia</h2>
+    <p>
+      Fundada en Medellín en 2008, Brasaland comenzó como un sueño familiar: compartir el auténtico 
+      sabor de la carne a la brasa con calidad constante y servicio cálido. Hoy somos 14 restaurantes 
+      en dos países, pero mantenemos la misma receta de éxito: productos frescos, técnicas tradicionales, 
+      y pasión por cada plato que servimos.
+    </p>
+  </div>
+<img 
+  src="Brasaland-company.md/Brasaland.png" 
+  alt="Carne a la brasa en Brasaland" 
+  class="rounded-xl shadow w-full h-auto">
+
+</section>
+
+<!-- FEATURES -->
+<section class="max-w-6xl mx-auto py-16 px-4 grid gap-8 md:grid-cols-3">
+
+  <article class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-xl font-bold mb-3">🔥 Calidad Consistente</h3>
+    <ul class="text-sm">
+      <li>• Mismas recetas en todos los locales</li>
+      <li>• Ingredientes frescos diariamente</li>
+    </ul>
+  </article>
+
+  <article class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-xl font-bold mb-3">🤝 Experiencia Cálida</h3>
+    <ul class="text-sm">
+      <li>• Servicio amable y atento</li>
+      <li>• Ambiente familiar</li>
+    </ul>
+  </article>
+
+  <article class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-xl font-bold mb-3">⚡ Rapidez</h3>
+    <ul class="text-sm">
+      <li>• Comida lista en minutos</li>
+      <li>• Sin perder calidad</li>
+    </ul>
+  </article>
+
+</section>
+
+<!-- UBICACIONES -->
+<section id="locations" class="max-w-6xl mx-auto py-16 px-4 grid md:grid-cols-2 gap-8">
+
+  <div class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-2xl font-bold mb-3">🇨🇴 Colombia</h3>
+    <p>10 restaurantes en Medellín, Bogotá y Cali</p>
+    <p class="text-sm text-gray-600">Horario: Lun-Dom 11:00 - 22:00</p>
+  </div>
+
+  <div class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-2xl font-bold mb-3">🇺🇸 Estados Unidos (Florida)</h3>
+    <p>4 restaurantes en Miami y Orlando</p>
+    <p class="text-sm text-gray-600">Horario: Mon-Sun 11:00 AM - 10:00 PM</p>
+  </div>
+
+</section>
+
+<!-- BRASA POINTS -->
+<section id="points" class="bg-red-500 text-white text-center py-16 px-4">
+
+  <h2 class="text-3xl font-bold mb-6">Brasa Points 🔥</h2>
+
+  <ul class="max-w-xl mx-auto space-y-2 mb-6">
+    <li>• Gana puntos con cada visita</li>
+    <li>• 1 punto por cada $10.000 COP o $5 USD</li>
+    <li>• Canjea por descuentos y platos gratis</li>
+    <li>• Ofertas exclusivas</li>
+    <li>• 100% digital (sin tarjetas físicas)</li>
+  </ul>
+
+  <a href="application.html" 
+     class="bg-white text-red-500 px-6 py-3 rounded font-bold">
+    Registrarme
+  </a>
+
+</section>
+
+<!-- MENSAJE IMPORTANTE -->
+<section class="text-center py-8 px-4 bg-yellow-100">
+  <p class="font-semibold">
+    ¿Quieres hacer un pedido? Llama a tu ubicación favorita o visítanos directamente. 
+    ¡Pronto tendremos pedidos en línea!
+  </p>
+</section>
+
+<!-- CONTACTO -->
+<section id="contact" class="max-w-6xl mx-auto py-16 px-4 text-center">
+
+  <h2 class="text-3xl font-bold mb-6">Contacto</h2>
+
+  <p>Email: hola@brasaland.com</p>
+  <p>Colombia: +57 4 123 4567</p>
+  <p>Florida: +1 305 123 4567</p>
+
+</section>
+
+</main>
+
+<!-- FOOTER -->
+<footer class="bg-gray-900 text-white text-center p-8">
+
+  <p class="mb-2">© 2025 Brasaland. Todos los derechos reservados.</p>
+
+  <div class="flex justify-center gap-4">
+    <a href="#" class="hover:text-red-400">Instagram</a>
+    <a href="#" class="hover:text-red-400">Facebook</a>
+  </div>
+
+</footer>
+</body>
+</html>
