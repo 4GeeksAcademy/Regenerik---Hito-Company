@@ -1,0 +1,7 @@
+node_modules/
+dist/
+skills/data-analysis/scripts/__pycache__/
+packages/shared/types/*.js
+packages/shared/types/*.js.map
+packages/shared/types/*.d.ts
+packages/shared/types/*.d.ts.map
