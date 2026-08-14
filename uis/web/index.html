@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brasaland Backoffice | Incidentes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="grain"></div>
+  <header class="topbar">
+    <h1>Brasaland Ops Console</h1>
+    <a href="../../index.html" class="ghost-link">Volver al sitio</a>
+  </header>
+
+  <main class="layout">
+    <section class="panel upload-panel">
+      <h2>Análisis de incidencias</h2>
+      <p class="muted">Sube el CSV mensual y obtén el resumen operativo de inmediato.</p>
+
+      <label class="api-url">
+        API base URL
+        <input id="apiBaseUrl" type="text" value="http://127.0.0.1:8000" />
+      </label>
+
+      <div id="dropzone" class="dropzone" tabindex="0">
+        <input id="fileInput" type="file" accept=".csv" hidden />
+        <p><strong>Arrastra tu CSV aquí</strong> o haz click para seleccionarlo.</p>
+        <small>Formato esperado: incidents-brasaland.csv</small>
+      </div>
+
+      <div class="actions">
+        <button id="analyzeBtn" class="btn primary" disabled>Analizar archivo</button>
+        <button id="downloadBtn" class="btn" disabled>Descargar CSV</button>
+      </div>
+
+      <p id="fileInfo" class="file-info">Ningún archivo seleccionado.</p>
+      <p id="statusMessage" class="status"></p>
+    </section>
+
+    <section id="results" class="panel results-panel hidden">
+      <h2>Resumen de resultados</h2>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="grid-two">
+        <article class="card">
+          <h3>Inválidos por tipo</h3>
+          <ul id="invalidList"></ul>
+        </article>
+
+        <article class="card">
+          <h3>Índice de satisfacción</h3>
+          <div id="satisfaction"></div>
+        </article>
+      </div>
+
+      <div class="grid-two">
+        <article class="card">
+          <h3>Por categoría (válidos)</h3>
+          <table id="categoryTable">
+            <thead>
+              <tr><th>Categoría</th><th>Cantidad</th><th>%</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </article>
+
+        <article class="card">
+          <h3>Por estado (válidos)</h3>
+          <table id="statusTable">
+            <thead>
+              <tr><th>Estado</th><th>Cantidad</th><th>%</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
