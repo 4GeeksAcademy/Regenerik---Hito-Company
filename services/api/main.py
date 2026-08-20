@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import sys
 from pathlib import Path
 
@@ -18,8 +17,9 @@ from shared.incidents_analysis import (  # noqa: E402
     to_metrics_rows,
     to_summary,
 )
+from routes.suppliers import router as suppliers_router  # noqa: E402
 
-app = FastAPI(title="Brasaland Incidents API", version="1.0.0")
+app = FastAPI(title="Brasaland Operations API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -93,3 +93,7 @@ def latest_results() -> JSONResponse:
     if LATEST_SUMMARY is None:
         raise HTTPException(status_code=404, detail="No hay análisis ejecutados todavía")
     return JSONResponse(content=LATEST_SUMMARY)
+
+
+app.include_router(suppliers_router)
+app.include_router(suppliers_router, prefix="/api")

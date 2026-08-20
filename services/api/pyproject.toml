@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "brasaland-ops-api"
+version = "0.1.0"
+description = "FastAPI + TinyDB API for incidents and suppliers"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.116.1",
+  "uvicorn==0.35.0",
+  "python-multipart==0.0.20",
+  "tinydb==4.8.2"
+]
+
+[project.scripts]
+seed = "seed:main"
+
+[tool.hatch.build.targets.wheel]
+include = [
+  "seed.py",
+  "main.py",
+  "models.py",
+  "database.py",
+  "routes/*.py"
+]
