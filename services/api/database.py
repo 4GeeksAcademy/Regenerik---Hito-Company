@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from tinydb import Query, TinyDB
 
-from models import Supplier, SupplierCreate
+from models import Profile, ProfileCreate, ProfileUpdate, Supplier, SupplierCreate, User, UserCreate, UserUpdate
 
 SUPPLIERS_SEED: list[dict[str, Any]] = [
     {
@@ -260,4 +260,136 @@ class SupplierStore:
     def delete(self, supplier_id: str) -> bool:
         with self._lock:
             removed_ids = self._table.remove(self._query.id == supplier_id)
+            return bool(removed_ids)
+
+
+class UserStore:
+    def __init__(self, storage_path: Path) -> None:
+        self.storage_path = storage_path
+        self._lock = Lock()
+        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+        self._db = TinyDB(self.storage_path, ensure_ascii=False, indent=2)
+        self._table = self._db.table("users")
+        self._query = Query()
+
+    def count(self) -> int:
+        return len(self._table)
+
+    def list(self) -> list[dict[str, Any]]:
+        return self._table.all()
+
+    def get(self, user_id: str) -> dict[str, Any] | None:
+        return self._table.get(self._query.id == user_id)
+
+    def get_by_email(self, email: str) -> dict[str, Any] | None:
+        return self._table.get(self._query.email == email.strip().lower())
+
+    def create(self, payload: UserCreate, hashed_password: str) -> dict[str, Any]:
+        with self._lock:
+            existing = self.get_by_email(payload.email)
+            if existing is not None:
+                raise ValueError("Ya existe un usuario con ese email")
+
+            current_time = now_iso()
+            record = {
+                "id": str(uuid4()),
+                "email": payload.email,
+                "hashed_password": hashed_password,
+                "is_active": True,
+                "role": payload.role.value,
+                "created_at": current_time,
+                "updated_at": current_time,
+            }
+            User(**record)
+            self._table.insert(record)
+            return record
+
+    def update(self, user_id: str, payload: UserUpdate) -> dict[str, Any] | None:
+        with self._lock:
+            current = self.get(user_id)
+            if current is None:
+                return None
+
+            updated = dict(current)
+            if payload.email is not None:
+                existing = self.get_by_email(payload.email)
+                if existing is not None and existing["id"] != user_id:
+                    raise ValueError("Ya existe un usuario con ese email")
+                updated["email"] = payload.email
+
+            if payload.role is not None:
+                updated["role"] = payload.role.value
+
+            if payload.is_active is not None:
+                updated["is_active"] = payload.is_active
+
+            updated["updated_at"] = now_iso()
+            User(**updated)
+
+            self._table.update(updated, self._query.id == user_id)
+            return updated
+
+    def delete(self, user_id: str) -> bool:
+        with self._lock:
+            removed_ids = self._table.remove(self._query.id == user_id)
+            return bool(removed_ids)
+
+
+class ProfileStore:
+    def __init__(self, storage_path: Path) -> None:
+        self.storage_path = storage_path
+        self._lock = Lock()
+        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+        self._db = TinyDB(self.storage_path, ensure_ascii=False, indent=2)
+        self._table = self._db.table("profiles")
+        self._query = Query()
+
+    def list(self) -> list[dict[str, Any]]:
+        return self._table.all()
+
+    def get(self, profile_id: str) -> dict[str, Any] | None:
+        return self._table.get(self._query.id == profile_id)
+
+    def get_by_user_id(self, user_id: str) -> dict[str, Any] | None:
+        return self._table.get(self._query.user_id == user_id)
+
+    def create(self, payload: ProfileCreate) -> dict[str, Any]:
+        with self._lock:
+            existing = self.get_by_user_id(payload.user_id)
+            if existing is not None:
+                raise ValueError("Ese usuario ya tiene un perfil")
+
+            record = payload.model_dump()
+            current_time = now_iso()
+            record["id"] = str(uuid4())
+            record["created_at"] = current_time
+            record["updated_at"] = current_time
+
+            Profile(**record)
+            self._table.insert(record)
+            return record
+
+    def update(self, profile_id: str, payload: ProfileUpdate) -> dict[str, Any] | None:
+        with self._lock:
+            current = self.get(profile_id)
+            if current is None:
+                return None
+
+            updated = dict(current)
+            patch = payload.model_dump(exclude_none=True)
+            updated.update(patch)
+            updated["updated_at"] = now_iso()
+
+            Profile(**updated)
+            self._table.update(updated, self._query.id == profile_id)
+            return updated
+
+    def delete(self, profile_id: str) -> bool:
+        with self._lock:
+            removed_ids = self._table.remove(self._query.id == profile_id)
+            return bool(removed_ids)
+
+    def delete_by_user_id(self, user_id: str) -> bool:
+        with self._lock:
+            removed_ids = self._table.remove(self._query.user_id == user_id)
             return bool(removed_ids)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 import re
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -166,3 +167,217 @@ def validate_filter_status(status: str | None) -> str | None:
     if status not in VALID_STATUSES:
         raise ValueError(f"status invalido: {status}. Debe ser uno de {VALID_STATUSES}")
     return status
+
+
+EMAIL_REGEX = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+
+
+class UserRole(str, Enum):
+    admin = "admin"
+    manager = "manager"
+    user = "user"
+
+
+class UserBase(BaseModel):
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not EMAIL_REGEX.fullmatch(normalized):
+            raise ValueError("email invalido")
+        return normalized
+
+
+class UserCreate(UserBase):
+    password: str = Field(min_length=8)
+    role: UserRole = UserRole.user
+    name: str | None = None
+    phone: str | None = None
+    address: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not re.fullmatch(r"[0-9+\-()\s]{7,20}", normalized):
+            raise ValueError("phone invalido")
+        return normalized
+
+    @field_validator("address")
+    @classmethod
+    def validate_address(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
+class UserUpdate(BaseModel):
+    email: str | None = None
+    role: UserRole | None = None
+    is_active: bool | None = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if not EMAIL_REGEX.fullmatch(normalized):
+            raise ValueError("email invalido")
+        return normalized
+
+    @model_validator(mode="after")
+    def require_one_field(self) -> "UserUpdate":
+        if self.email is None and self.role is None and self.is_active is None:
+            raise ValueError("Debes enviar al menos un campo para actualizar")
+        return self
+
+
+class User(UserBase):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    hashed_password: str
+    is_active: bool
+    role: UserRole
+    created_at: str
+    updated_at: str
+
+
+class UserPublic(UserBase):
+    id: str
+    is_active: bool
+    role: UserRole
+    created_at: str
+    updated_at: str
+
+
+class ProfileBase(BaseModel):
+    name: str = Field(min_length=1)
+    phone: str | None = None
+    address: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("name no puede estar vacio")
+        return normalized
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not re.fullmatch(r"[0-9+\-()\s]{7,20}", normalized):
+            raise ValueError("phone invalido")
+        return normalized
+
+    @field_validator("address")
+    @classmethod
+    def validate_address(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
+class ProfileCreate(ProfileBase):
+    user_id: str
+
+
+class ProfileUpdate(BaseModel):
+    name: str | None = None
+    phone: str | None = None
+    address: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("name no puede estar vacio")
+        return normalized
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not re.fullmatch(r"[0-9+\-()\s]{7,20}", normalized):
+            raise ValueError("phone invalido")
+        return normalized
+
+    @field_validator("address")
+    @classmethod
+    def validate_address(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @model_validator(mode="after")
+    def require_one_field(self) -> "ProfileUpdate":
+        if self.name is None and self.phone is None and self.address is None:
+            raise ValueError("Debes enviar al menos un campo para actualizar")
+        return self
+
+
+class Profile(ProfileBase):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    user_id: str
+    created_at: str
+    updated_at: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not EMAIL_REGEX.fullmatch(normalized):
+            raise ValueError("email invalido")
+        return normalized
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user_id: str
+
+
+class AuthMeResponse(BaseModel):
+    id: str
+    email: str
+    role: UserRole
+    profile: Profile | None

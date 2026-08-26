@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from database import SupplierStore
 from models import (
     SupplierCreate,
     SupplierRateUpdate,
@@ -14,9 +11,10 @@ from models import (
     validate_filter_country,
     validate_filter_status,
 )
+from stores import supplier_store
 
 router = APIRouter(tags=["suppliers"])
-store = SupplierStore(storage_path=Path(__file__).resolve().parents[1] / "data" / "suppliers.json")
+store = supplier_store
 
 
 @router.get("/suppliers")

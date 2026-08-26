@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
@@ -17,7 +17,11 @@ from shared.incidents_analysis import (  # noqa: E402
     to_metrics_rows,
     to_summary,
 )
+from auth import get_current_user  # noqa: E402
+from routes.auth import router as auth_router  # noqa: E402
+from routes.profiles import router as profiles_router  # noqa: E402
 from routes.suppliers import router as suppliers_router  # noqa: E402
+from routes.users import router as users_router  # noqa: E402
 
 app = FastAPI(title="Brasaland Operations API", version="1.0.0")
 
@@ -38,7 +42,7 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.post("/api/incidents/analyze")
+@app.post("/api/incidents/analyze", dependencies=[Depends(get_current_user)])
 async def analyze_incidents(file: UploadFile = File(...)) -> JSONResponse:
     global LATEST_SUMMARY, LATEST_RESULTS_CSV
 
@@ -76,7 +80,7 @@ async def analyze_incidents(file: UploadFile = File(...)) -> JSONResponse:
     return JSONResponse(content=summary)
 
 
-@app.get("/api/incidents/results/export")
+@app.get("/api/incidents/results/export", dependencies=[Depends(get_current_user)])
 def export_last_results() -> Response:
     if LATEST_RESULTS_CSV is None:
         raise HTTPException(status_code=404, detail="No hay resultados para exportar. Ejecuta primero el análisis.")
@@ -88,12 +92,15 @@ def export_last_results() -> Response:
     )
 
 
-@app.get("/api/incidents/results/latest")
+@app.get("/api/incidents/results/latest", dependencies=[Depends(get_current_user)])
 def latest_results() -> JSONResponse:
     if LATEST_SUMMARY is None:
         raise HTTPException(status_code=404, detail="No hay análisis ejecutados todavía")
     return JSONResponse(content=LATEST_SUMMARY)
 
 
-app.include_router(suppliers_router)
-app.include_router(suppliers_router, prefix="/api")
+app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(profiles_router)
+app.include_router(suppliers_router, dependencies=[Depends(get_current_user)])
+app.include_router(suppliers_router, prefix="/api", dependencies=[Depends(get_current_user)])
