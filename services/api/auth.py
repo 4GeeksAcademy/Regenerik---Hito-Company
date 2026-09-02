@@ -4,10 +4,10 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.hash import bcrypt
 
 from stores import user_store
 
@@ -44,13 +44,13 @@ def get_user_store():
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
     try:
-        return bcrypt.verify(plain_password, password_hash)
-    except ValueError:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
+    except (TypeError, ValueError):
         return False
 
 

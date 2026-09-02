@@ -1,3 +1,7 @@
+const AUTH_TOKEN_KEY = 'brasaland.jwt';
+const API_BASE_KEY = 'brasaland.apiBase';
+const DEFAULT_API_BASE = 'http://127.0.0.1:8000';
+
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
 const analyzeBtn = document.getElementById('analyzeBtn');
@@ -6,6 +10,24 @@ const fileInfo = document.getElementById('fileInfo');
 const statusMessage = document.getElementById('statusMessage');
 const apiBaseUrlInput = document.getElementById('apiBaseUrl');
 const resultsSection = document.getElementById('results');
+
+const authPanel = document.getElementById('authPanel');
+const protectedApp = document.getElementById('protectedApp');
+const authMessage = document.getElementById('authMessage');
+const currentUser = document.getElementById('currentUser');
+const logoutBtn = document.getElementById('logoutBtn');
+
+const showLoginBtn = document.getElementById('showLoginBtn');
+const showRegisterBtn = document.getElementById('showRegisterBtn');
+const loginView = document.getElementById('loginView');
+const registerView = document.getElementById('registerView');
+const loginForm = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
+
+const profileEmail = document.getElementById('profileEmail');
+const profileRole = document.getElementById('profileRole');
+const profileForm = document.getElementById('profileForm');
+const profileMessage = document.getElementById('profileMessage');
 
 const kpis = document.getElementById('kpis');
 const invalidList = document.getElementById('invalidList');
@@ -27,8 +49,14 @@ function setStatus(message, type = '') {
   statusMessage.className = `status ${type}`.trim();
 }
 
-function getApiBase() {
-  return apiBaseUrlInput.value.trim().replace(/\/+$/, '');
+function setAuthMessage(message, type = '') {
+  authMessage.textContent = message;
+  authMessage.className = `status ${type}`.trim();
+}
+
+function setProfileMessage(message, type = '') {
+  profileMessage.textContent = message;
+  profileMessage.className = `status ${type}`.trim();
 }
 
 function setSuppliersStatus(message, type = '') {
@@ -36,8 +64,126 @@ function setSuppliersStatus(message, type = '') {
   suppliersStatus.className = `status ${type}`.trim();
 }
 
-function supplierEndpoint() {
-  return `${getApiBase()}/suppliers`;
+function getApiBase() {
+  const inputValue = apiBaseUrlInput.value.trim();
+  const value = (inputValue || localStorage.getItem(API_BASE_KEY) || DEFAULT_API_BASE).replace(/\/+$/, '');
+  localStorage.setItem(API_BASE_KEY, value);
+  if (apiBaseUrlInput.value.trim() !== value) {
+    apiBaseUrlInput.value = value;
+  }
+  return value;
+}
+
+function getAppBase() {
+  const marker = '/uis/backoffice/';
+  const path = window.location.pathname;
+  const index = path.indexOf(marker);
+  if (index === -1) {
+    return '';
+  }
+  return path.slice(0, index + marker.length - 1);
+}
+
+function appRoute(suffix) {
+  const base = getAppBase();
+  return base ? `${base}${suffix}` : suffix;
+}
+
+function redirectToLogin(message = '') {
+  clearToken();
+  clearSessionUi();
+  if (message) {
+    localStorage.setItem('brasaland.auth.notice', message);
+  }
+  window.location.href = appRoute('/login/');
+}
+
+function getToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+function saveToken(token) {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+function clearToken() {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+function clearSessionUi() {
+  currentUser.textContent = '';
+  logoutBtn.classList.add('hidden');
+}
+
+function updateSessionUi(user) {
+  currentUser.textContent = `${user.email} (${user.role})`;
+  logoutBtn.classList.remove('hidden');
+}
+
+function showAuthView(mode) {
+  const showLogin = mode === 'login';
+  loginView.classList.toggle('hidden', !showLogin);
+  registerView.classList.toggle('hidden', showLogin);
+  showLoginBtn.classList.toggle('active', showLogin);
+  showRegisterBtn.classList.toggle('active', !showLogin);
+}
+
+function showAuthPanel(mode = 'login') {
+  protectedApp.classList.add('hidden');
+  authPanel.classList.remove('hidden');
+  showAuthView(mode);
+}
+
+function showProtectedApp() {
+  authPanel.classList.add('hidden');
+  protectedApp.classList.remove('hidden');
+}
+
+function parseErrorDetail(payload, fallback) {
+  if (!payload || payload.detail === undefined) {
+    return fallback;
+  }
+  if (typeof payload.detail === 'string') {
+    return payload.detail;
+  }
+  return JSON.stringify(payload.detail);
+}
+
+async function apiFetch(path, options = {}) {
+  const { auth = true, responseType = 'json', headers = {}, ...fetchOptions } = options;
+  const mergedHeaders = { ...headers };
+
+  if (auth) {
+    const token = getToken();
+    if (!token) {
+      redirectToLogin('Debes iniciar sesión para acceder a la vista protegida.');
+      throw new Error('Debes iniciar sesión para continuar.');
+    }
+    mergedHeaders.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${getApiBase()}${path}`, {
+    ...fetchOptions,
+    headers: mergedHeaders,
+  });
+
+  if (response.status === 401 && auth) {
+    redirectToLogin('Sesión expirada o inválida. Inicia sesión de nuevo.');
+    throw new Error('Sesión expirada o inválida');
+  }
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(parseErrorDetail(payload, 'Error de API'));
+  }
+
+  if (responseType === 'blob') {
+    return response.blob();
+  }
+  if (responseType === 'text') {
+    return response.text();
+  }
+  return response.json();
 }
 
 function onFileSelected(file) {
@@ -61,6 +207,141 @@ function handleDrop(event) {
   onFileSelected(file);
 }
 
+function fillProfileForm(profile) {
+  profileForm.elements.name.value = profile?.name || '';
+  profileForm.elements.phone.value = profile?.phone || '';
+  profileForm.elements.address.value = profile?.address || '';
+}
+
+async function loadProfile() {
+  try {
+    const profile = await apiFetch('/profiles/me');
+    fillProfileForm(profile);
+    setProfileMessage('Perfil cargado.', 'ok');
+  } catch (error) {
+    if (error.message.includes('404')) {
+      fillProfileForm(null);
+      setProfileMessage('Aún no tienes perfil. Completa tus datos y guarda.', 'warn');
+      return;
+    }
+    if (error.message === 'Perfil no encontrado') {
+      fillProfileForm(null);
+      setProfileMessage('Aún no tienes perfil. Completa tus datos y guarda.', 'warn');
+      return;
+    }
+    setProfileMessage(`Error al cargar perfil: ${error.message}`, 'error');
+  }
+}
+
+async function saveProfile(event) {
+  event.preventDefault();
+
+  const payload = {
+    name: profileForm.elements.name.value.trim() || null,
+    phone: profileForm.elements.phone.value.trim() || null,
+    address: profileForm.elements.address.value.trim() || null,
+  };
+
+  if (!payload.name && !payload.phone && !payload.address) {
+    setProfileMessage('Debes completar al menos un campo.', 'warn');
+    return;
+  }
+
+  setProfileMessage('Guardando perfil...', 'warn');
+  try {
+    const profile = await apiFetch('/profiles/me', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    fillProfileForm(profile);
+    setProfileMessage('Perfil actualizado correctamente.', 'ok');
+  } catch (error) {
+    setProfileMessage(`Error al guardar perfil: ${error.message}`, 'error');
+  }
+}
+
+async function login(event) {
+  event.preventDefault();
+  setAuthMessage('Iniciando sesión...', 'warn');
+
+  const payload = {
+    email: loginForm.elements.email.value.trim(),
+    password: loginForm.elements.password.value,
+  };
+
+  try {
+    const session = await apiFetch('/auth/login', {
+      method: 'POST',
+      auth: false,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    saveToken(session.access_token);
+    await initializeAuthenticatedSession();
+    setAuthMessage('Inicio de sesión exitoso.', 'ok');
+  } catch (error) {
+    setAuthMessage(`No se pudo iniciar sesión: ${error.message}`, 'error');
+  }
+}
+
+async function register(event) {
+  event.preventDefault();
+  setAuthMessage('Creando cuenta...', 'warn');
+
+  const payload = {
+    email: registerForm.elements.email.value.trim(),
+    password: registerForm.elements.password.value,
+    name: registerForm.elements.name.value.trim() || null,
+    phone: registerForm.elements.phone.value.trim() || null,
+    address: registerForm.elements.address.value.trim() || null,
+  };
+
+  try {
+    await apiFetch('/users', {
+      method: 'POST',
+      auth: false,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const session = await apiFetch('/auth/login', {
+      method: 'POST',
+      auth: false,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: payload.email, password: payload.password }),
+    });
+
+    saveToken(session.access_token);
+    await initializeAuthenticatedSession();
+    setAuthMessage('Cuenta creada y sesión iniciada.', 'ok');
+    registerForm.reset();
+  } catch (error) {
+    setAuthMessage(`No se pudo registrar la cuenta: ${error.message}`, 'error');
+  }
+}
+
+function logout() {
+  redirectToLogin('Sesión cerrada.');
+}
+
+async function initializeAuthenticatedSession() {
+  try {
+    const me = await apiFetch('/auth/me');
+    updateSessionUi(me);
+    profileEmail.textContent = me.email;
+    profileRole.textContent = me.role;
+    showProtectedApp();
+    await loadProfile();
+    await fetchSuppliers();
+  } catch (error) {
+    clearToken();
+    clearSessionUi();
+    showAuthPanel('login');
+    throw error;
+  }
+}
+
 async function analyzeFile() {
   if (!selectedFile) {
     setStatus('Selecciona un CSV antes de analizar.', 'warn');
@@ -74,17 +355,10 @@ async function analyzeFile() {
   formData.append('file', selectedFile);
 
   try {
-    const response = await fetch(`${getApiBase()}/api/incidents/analyze`, {
+    const summary = await apiFetch('/api/incidents/analyze', {
       method: 'POST',
       body: formData,
     });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.detail || 'Error desconocido en API');
-    }
-
-    const summary = await response.json();
     renderSummary(summary);
 
     downloadBtn.disabled = false;
@@ -157,13 +431,8 @@ function renderSummary(summary) {
 
 async function downloadResults() {
   try {
-    const response = await fetch(`${getApiBase()}/api/incidents/results/export`);
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.detail || 'No se pudo descargar');
-    }
+    const blob = await apiFetch('/api/incidents/results/export', { responseType: 'blob' });
 
-    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -229,12 +498,7 @@ function renderSuppliers(items) {
 async function fetchSuppliers() {
   setSuppliersStatus('Cargando proveedores...', 'warn');
   try {
-    const response = await fetch(`${supplierEndpoint()}${buildSupplierQuery()}`);
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.detail || 'No se pudo cargar proveedores');
-    }
-    const payload = await response.json();
+    const payload = await apiFetch(`/suppliers${buildSupplierQuery()}`);
     renderSuppliers(payload.items || []);
     setSuppliersStatus(`Listado actualizado. Registros: ${payload.total}.`, 'ok');
   } catch (error) {
@@ -265,15 +529,11 @@ async function createSupplier(event) {
 
   setSuppliersStatus('Creando proveedor...', 'warn');
   try {
-    const response = await fetch(supplierEndpoint(), {
+    await apiFetch('/suppliers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.detail ? JSON.stringify(err.detail) : 'Datos invalidos');
-    }
 
     supplierForm.reset();
     setSuppliersStatus('Proveedor registrado correctamente.', 'ok');
@@ -284,30 +544,19 @@ async function createSupplier(event) {
 }
 
 async function updateSupplierRate(supplierId, value) {
-  const payload = { rate_per_unit: Number(value) };
-  const response = await fetch(`${supplierEndpoint()}/${supplierId}/rate`, {
+  await apiFetch(`/suppliers/${supplierId}/rate`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ rate_per_unit: Number(value) }),
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.detail ? JSON.stringify(err.detail) : 'No se pudo actualizar tarifa');
-  }
 }
 
 async function updateSupplierStatus(supplierId, status) {
-  const response = await fetch(`${supplierEndpoint()}/${supplierId}/status`, {
+  await apiFetch(`/suppliers/${supplierId}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.detail ? JSON.stringify(err.detail) : 'No se pudo actualizar estado');
-  }
 }
 
 suppliersTableBody.addEventListener('submit', async (event) => {
@@ -373,6 +622,12 @@ dropzone.addEventListener('keydown', (event) => {
   }
 });
 
+showLoginBtn.addEventListener('click', () => showAuthView('login'));
+showRegisterBtn.addEventListener('click', () => showAuthView('register'));
+loginForm.addEventListener('submit', login);
+registerForm.addEventListener('submit', register);
+logoutBtn.addEventListener('click', logout);
+profileForm.addEventListener('submit', saveProfile);
 analyzeBtn.addEventListener('click', analyzeFile);
 downloadBtn.addEventListener('click', downloadResults);
 refreshSuppliersBtn.addEventListener('click', fetchSuppliers);
@@ -381,4 +636,10 @@ filterCategory.addEventListener('change', fetchSuppliers);
 filterStatus.addEventListener('change', fetchSuppliers);
 supplierForm.addEventListener('submit', createSupplier);
 
-fetchSuppliers();
+if (getToken()) {
+  initializeAuthenticatedSession().catch(() => {
+    redirectToLogin('Tu sesión no es válida. Inicia sesión de nuevo.');
+  });
+} else {
+  redirectToLogin('Debes iniciar sesión para acceder a la vista protegida.');
+}

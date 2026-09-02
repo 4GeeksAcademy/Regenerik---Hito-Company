@@ -53,6 +53,18 @@ body {
   gap: 12px;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.current-user {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
 .topbar h1 {
   margin: 0;
   font-size: 1.1rem;
@@ -110,6 +122,43 @@ body {
   padding: 10px;
   background: #fff;
   font-family: "IBM Plex Mono", monospace;
+}
+
+.auth-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.auth-switch .btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-form label,
+.account-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.auth-form input,
+.account-form input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px;
+  background: #fff;
+}
+
+.auth-form button,
+.account-form button {
+  justify-self: start;
 }
 
 .dropzone {
@@ -342,6 +391,13 @@ th {
 
 .supplier-form button {
   align-self: end;
+}
+
+.account-form {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 @media (min-width: 900px) {
