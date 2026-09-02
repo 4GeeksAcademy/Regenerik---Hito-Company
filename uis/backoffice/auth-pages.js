@@ -33,13 +33,16 @@ function profileRoute() {
   return appRoute('/account/profile/');
 }
 
+function changePasswordRoute() {
+  return appRoute('/account/change-password/');
+}
+
 function forgotPasswordRoute() {
   return appRoute('/forgot-password/');
 }
 
-function resetPasswordRoute(token = '') {
-  const base = appRoute('/reset-password/');
-  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+function resetPasswordRoute() {
+  return appRoute('/reset-password/');
 }
 
 function getToken() {
@@ -256,7 +259,6 @@ async function handleForgotPasswordPage() {
   const form = document.getElementById('forgotPasswordForm');
   const status = document.getElementById('statusMessage');
   const apiBaseInput = document.getElementById('apiBaseUrl');
-  const resetLinkBox = document.getElementById('resetLinkBox');
 
   apiBaseInput.value = getApiBase();
   apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
@@ -265,7 +267,6 @@ async function handleForgotPasswordPage() {
     event.preventDefault();
     clearFieldErrors(form);
     setMessage(status, 'Solicitando enlace de recuperación...', 'warn');
-    resetLinkBox.innerHTML = '';
 
     const payload = { email: form.elements.email.value.trim() };
 
@@ -283,14 +284,10 @@ async function handleForgotPasswordPage() {
       return;
     }
 
+    // Siempre se muestra el mismo mensaje, exista o no el email, para evitar enumeracion de cuentas.
     const result = await response.json();
     setMessage(status, result.message, 'ok');
-
-    // No hay servicio de email configurado: se muestra el enlace directamente para poder completar el flujo.
-    if (result.reset_token) {
-      const link = resetPasswordRoute(result.reset_token);
-      resetLinkBox.innerHTML = `Enlace de recuperación (válido ${Math.round(result.expires_in / 60)} min): <a href="${link}">${link}</a>`;
-    }
+    form.reset();
   });
 }
 
@@ -336,8 +333,8 @@ async function handleResetPasswordPage() {
       return;
     }
 
-    setMessage(status, 'Contraseña actualizada. Ya puedes iniciar sesión.', 'ok');
-    form.reset();
+    setMessage(status, 'Contraseña actualizada. Redirigiendo al login...', 'ok');
+    window.location.href = loginRoute();
   });
 }
 
@@ -354,8 +351,6 @@ async function handleProfilePage() {
   const roleNode = document.getElementById('roleValue');
   const status = document.getElementById('statusMessage');
   const logoutBtn = document.getElementById('logoutBtn');
-  const changePasswordForm = document.getElementById('changePasswordForm');
-  const changePasswordStatus = document.getElementById('changePasswordStatus');
 
   apiBaseInput.value = getApiBase();
   apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
@@ -414,13 +409,34 @@ async function handleProfilePage() {
     clearToken();
     window.location.href = loginRoute();
   });
+}
+
+async function handleChangePasswordPage() {
+  const token = getToken();
+  if (!token) {
+    window.location.href = loginRoute();
+    return;
+  }
+
+  const apiBaseInput = document.getElementById('apiBaseUrl');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const changePasswordForm = document.getElementById('changePasswordForm');
+  const status = document.getElementById('statusMessage');
+
+  apiBaseInput.value = getApiBase();
+  apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
+
+  logoutBtn.addEventListener('click', () => {
+    clearToken();
+    window.location.href = loginRoute();
+  });
 
   changePasswordForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearFieldErrors(changePasswordForm);
 
     if (changePasswordForm.elements.new_password.value !== changePasswordForm.elements.confirm_password.value) {
-      setMessage(changePasswordStatus, 'Las contraseñas nuevas no coinciden.', 'error');
+      setMessage(status, 'Las contraseñas nuevas no coinciden.', 'error');
       return;
     }
 
@@ -429,7 +445,7 @@ async function handleProfilePage() {
       new_password: changePasswordForm.elements.new_password.value,
     };
 
-    setMessage(changePasswordStatus, 'Actualizando contraseña...', 'warn');
+    setMessage(status, 'Actualizando contraseña...', 'warn');
     const response = await authFetch('/auth/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -439,11 +455,11 @@ async function handleProfilePage() {
     if (!response.ok) {
       const error = await parseError(response, 'No se pudo actualizar la contraseña');
       const hasFieldErrors = showFieldErrors(changePasswordForm, error.detail);
-      setMessage(changePasswordStatus, hasFieldErrors ? 'Revisa los campos marcados.' : error.message, 'error');
+      setMessage(status, hasFieldErrors ? 'Revisa los campos marcados.' : error.message, 'error');
       return;
     }
 
-    setMessage(changePasswordStatus, 'Contraseña actualizada correctamente.', 'ok');
+    setMessage(status, 'Contraseña actualizada correctamente.', 'ok');
     changePasswordForm.reset();
   });
 }
@@ -452,6 +468,7 @@ function wireTopNav() {
   const toRegister = document.getElementById('toRegister');
   const toLogin = document.getElementById('toLogin');
   const toProfile = document.getElementById('toProfile');
+  const toChangePassword = document.getElementById('toChangePassword');
   const toForgotPassword = document.getElementById('toForgotPassword');
 
   if (toRegister) {
@@ -462,6 +479,9 @@ function wireTopNav() {
   }
   if (toProfile) {
     toProfile.href = profileRoute();
+  }
+  if (toChangePassword) {
+    toChangePassword.href = changePasswordRoute();
   }
   if (toForgotPassword) {
     toForgotPassword.href = forgotPasswordRoute();
@@ -487,6 +507,10 @@ async function main() {
     }
     if (page === 'reset-password') {
       await handleResetPasswordPage();
+      return;
+    }
+    if (page === 'change-password') {
+      await handleChangePasswordPage();
       return;
     }
     if (page === 'profile') {

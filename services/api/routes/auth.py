@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
@@ -10,6 +12,7 @@ from auth import (
     verify_password,
     verify_password_reset_token,
 )
+from email_service import send_password_reset_email
 from models import (
     AuthMeResponse,
     ChangePasswordRequest,
@@ -22,6 +25,8 @@ from stores import profile_store
 from user_service import change_password, get_user_by_email, set_user_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+DEFAULT_PASSWORD_RESET_URL_BASE = "http://127.0.0.1:5500/uis/web/reset-password/"
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -61,7 +66,7 @@ def auth_me(current_user: dict = Depends(get_current_user)) -> JSONResponse:
 @router.post("/forgot-password")
 def forgot_password(payload: ForgotPasswordRequest) -> JSONResponse:
     generic_message = {
-        "message": "Si el email existe, se generó un enlace de recuperación.",
+        "message": "Si el email existe, te enviamos un enlace de recuperación.",
     }
 
     user = get_user_by_email(payload.email)
@@ -69,17 +74,14 @@ def forgot_password(payload: ForgotPasswordRequest) -> JSONResponse:
         # No revelamos si el email existe para evitar enumeracion de cuentas.
         return JSONResponse(content=generic_message)
 
-    reset_token, expires_in = create_password_reset_token(user_id=user["id"])
+    reset_token, _ = create_password_reset_token(user_id=user["id"], hashed_password=user["hashed_password"])
+    reset_url_base = os.getenv("PASSWORD_RESET_URL_BASE", DEFAULT_PASSWORD_RESET_URL_BASE)
+    reset_link = f"{reset_url_base.rstrip('/')}/?token={reset_token}"
 
-    # No hay servicio de envio de email configurado en este proyecto:
-    # el token se devuelve directamente para permitir completar el flujo end-to-end.
-    return JSONResponse(
-        content={
-            **generic_message,
-            "reset_token": reset_token,
-            "expires_in": expires_in,
-        }
-    )
+    send_password_reset_email(to_email=user["email"], reset_link=reset_link)
+
+    # El token nunca se devuelve en la respuesta: solo se entrega por email.
+    return JSONResponse(content=generic_message)
 
 
 @router.post("/reset-password")

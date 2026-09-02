@@ -3,27 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Brasaland Web | Perfil</title>
+  <title>Brasaland Backoffice | Cambiar contraseña</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../styles.css">
 </head>
-<body data-page="profile">
+<body data-page="change-password">
   <div class="grain"></div>
   <header class="topbar">
-    <h1>Brasaland Web</h1>
+    <h1>Brasaland Backoffice</h1>
     <div class="topbar-actions">
-      <a class="ghost-link" href="../../index.html">Volver al panel</a>
-      <a id="toChangePassword" class="ghost-link" href="../change-password/">Cambiar contraseña</a>
+      <a id="toProfile" class="ghost-link" href="../profile/">Volver al perfil</a>
       <button id="logoutBtn" class="btn" type="button">Cerrar sesión</button>
     </div>
   </header>
 
   <main class="layout">
     <section class="panel account-panel">
-      <h2>/account/profile</h2>
-      <p class="muted">Datos de sesión desde GET /auth/me y actualización con PUT /profiles/me.</p>
+      <h2>/account/change-password</h2>
+      <p class="muted">Requiere tu contraseña actual para confirmar el cambio.</p>
 
       <label class="api-url">
         API base URL
@@ -31,29 +30,25 @@
       </label>
 
       <article class="card">
-        <p><strong>Email:</strong> <span id="emailValue">-</span></p>
-        <p><strong>Rol:</strong> <span id="roleValue">-</span></p>
-
-        <form id="profileForm" class="account-form">
+        <form id="changePasswordForm" class="account-form">
           <label>
-            Nombre
-            <input name="name" type="text" />
-            <small class="status error" data-field-error="name"></small>
+            Contraseña actual
+            <input name="current_password" type="password" required />
+            <small class="status error" data-field-error="current_password"></small>
           </label>
 
           <label>
-            Teléfono
-            <input name="phone" type="text" />
-            <small class="status error" data-field-error="phone"></small>
+            Nueva contraseña
+            <input name="new_password" type="password" minlength="8" required />
+            <small class="status error" data-field-error="new_password"></small>
           </label>
 
           <label>
-            Dirección
-            <input name="address" type="text" />
-            <small class="status error" data-field-error="address"></small>
+            Confirmar nueva contraseña
+            <input name="confirm_password" type="password" minlength="8" required />
           </label>
 
-          <button type="submit" class="btn primary">Guardar perfil</button>
+          <button type="submit" class="btn primary">Actualizar contraseña</button>
         </form>
       </article>
 

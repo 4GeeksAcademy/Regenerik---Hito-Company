@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -69,16 +70,21 @@ def create_access_token(user_id: str, expires_delta: timedelta | None = None) ->
     return encoded_jwt, int(expires_delta.total_seconds())
 
 
-def create_password_reset_token(user_id: str) -> tuple[str, int]:
+def create_password_reset_token(user_id: str, hashed_password: str) -> tuple[str, int]:
     expires_delta = timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
     expire_at = datetime.now(timezone.utc) + expires_delta
     payload = {
         "sub": user_id,
         "scope": PASSWORD_RESET_SCOPE,
+        "pwdfp": _password_fingerprint(hashed_password),
         "exp": expire_at,
     }
     encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt, int(expires_delta.total_seconds())
+
+
+def _password_fingerprint(hashed_password: str) -> str:
+    return hashlib.sha256(hashed_password.encode("utf-8")).hexdigest()
 
 
 def verify_password_reset_token(token: str) -> str:
@@ -97,6 +103,15 @@ def verify_password_reset_token(token: str) -> str:
 
     user_id = payload.get("sub")
     if user_id is None:
+        raise invalid_token_exception
+
+    user = user_store.get(user_id)
+    if user is None:
+        raise invalid_token_exception
+
+    # Si la contraseña ya cambio (por este mismo token o por change-password),
+    # el fingerprint no coincide y el token queda invalidado de un solo uso.
+    if payload.get("pwdfp") != _password_fingerprint(user["hashed_password"]):
         raise invalid_token_exception
 
     return user_id
