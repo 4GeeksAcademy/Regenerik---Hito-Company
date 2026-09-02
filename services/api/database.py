@@ -329,6 +329,20 @@ class UserStore:
             self._table.update(updated, self._query.id == user_id)
             return updated
 
+    def update_password(self, user_id: str, hashed_password: str) -> dict[str, Any] | None:
+        with self._lock:
+            current = self.get(user_id)
+            if current is None:
+                return None
+
+            updated = dict(current)
+            updated["hashed_password"] = hashed_password
+            updated["updated_at"] = now_iso()
+            User(**updated)
+
+            self._table.update(updated, self._query.id == user_id)
+            return updated
+
     def delete(self, user_id: str) -> bool:
         with self._lock:
             removed_ids = self._table.remove(self._query.id == user_id)

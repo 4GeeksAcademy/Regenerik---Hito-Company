@@ -33,6 +33,15 @@ function profileRoute() {
   return appRoute('/account/profile/');
 }
 
+function forgotPasswordRoute() {
+  return appRoute('/forgot-password/');
+}
+
+function resetPasswordRoute(token = '') {
+  const base = appRoute('/reset-password/');
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+}
+
 function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -243,6 +252,95 @@ async function handleRegisterPage() {
   });
 }
 
+async function handleForgotPasswordPage() {
+  const form = document.getElementById('forgotPasswordForm');
+  const status = document.getElementById('statusMessage');
+  const apiBaseInput = document.getElementById('apiBaseUrl');
+  const resetLinkBox = document.getElementById('resetLinkBox');
+
+  apiBaseInput.value = getApiBase();
+  apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearFieldErrors(form);
+    setMessage(status, 'Solicitando enlace de recuperación...', 'warn');
+    resetLinkBox.innerHTML = '';
+
+    const payload = { email: form.elements.email.value.trim() };
+
+    const response = await authFetch('/auth/forgot-password', {
+      method: 'POST',
+      auth: false,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await parseError(response, 'No se pudo procesar la solicitud');
+      const hasFieldErrors = showFieldErrors(form, error.detail);
+      setMessage(status, hasFieldErrors ? 'Revisa los campos marcados.' : error.message, 'error');
+      return;
+    }
+
+    const result = await response.json();
+    setMessage(status, result.message, 'ok');
+
+    // No hay servicio de email configurado: se muestra el enlace directamente para poder completar el flujo.
+    if (result.reset_token) {
+      const link = resetPasswordRoute(result.reset_token);
+      resetLinkBox.innerHTML = `Enlace de recuperación (válido ${Math.round(result.expires_in / 60)} min): <a href="${link}">${link}</a>`;
+    }
+  });
+}
+
+async function handleResetPasswordPage() {
+  const form = document.getElementById('resetPasswordForm');
+  const status = document.getElementById('statusMessage');
+  const apiBaseInput = document.getElementById('apiBaseUrl');
+
+  apiBaseInput.value = getApiBase();
+  apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
+
+  const params = new URLSearchParams(window.location.search);
+  const tokenFromUrl = params.get('token');
+  if (tokenFromUrl) {
+    form.elements.token.value = tokenFromUrl;
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearFieldErrors(form);
+
+    const payload = {
+      token: form.elements.token.value.trim(),
+      new_password: form.elements.new_password.value,
+    };
+
+    if (form.elements.new_password.value !== form.elements.confirm_password.value) {
+      setMessage(status, 'Las contraseñas no coinciden.', 'error');
+      return;
+    }
+
+    setMessage(status, 'Actualizando contraseña...', 'warn');
+    const response = await authFetch('/auth/reset-password', {
+      method: 'POST',
+      auth: false,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await parseError(response, 'No se pudo actualizar la contraseña');
+      setMessage(status, error.message, 'error');
+      return;
+    }
+
+    setMessage(status, 'Contraseña actualizada. Ya puedes iniciar sesión.', 'ok');
+    form.reset();
+  });
+}
+
 async function handleProfilePage() {
   const token = getToken();
   if (!token) {
@@ -256,6 +354,8 @@ async function handleProfilePage() {
   const roleNode = document.getElementById('roleValue');
   const status = document.getElementById('statusMessage');
   const logoutBtn = document.getElementById('logoutBtn');
+  const changePasswordForm = document.getElementById('changePasswordForm');
+  const changePasswordStatus = document.getElementById('changePasswordStatus');
 
   apiBaseInput.value = getApiBase();
   apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
@@ -314,12 +414,45 @@ async function handleProfilePage() {
     clearToken();
     window.location.href = loginRoute();
   });
+
+  changePasswordForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearFieldErrors(changePasswordForm);
+
+    if (changePasswordForm.elements.new_password.value !== changePasswordForm.elements.confirm_password.value) {
+      setMessage(changePasswordStatus, 'Las contraseñas nuevas no coinciden.', 'error');
+      return;
+    }
+
+    const payload = {
+      current_password: changePasswordForm.elements.current_password.value,
+      new_password: changePasswordForm.elements.new_password.value,
+    };
+
+    setMessage(changePasswordStatus, 'Actualizando contraseña...', 'warn');
+    const response = await authFetch('/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await parseError(response, 'No se pudo actualizar la contraseña');
+      const hasFieldErrors = showFieldErrors(changePasswordForm, error.detail);
+      setMessage(changePasswordStatus, hasFieldErrors ? 'Revisa los campos marcados.' : error.message, 'error');
+      return;
+    }
+
+    setMessage(changePasswordStatus, 'Contraseña actualizada correctamente.', 'ok');
+    changePasswordForm.reset();
+  });
 }
 
 function wireTopNav() {
   const toRegister = document.getElementById('toRegister');
   const toLogin = document.getElementById('toLogin');
   const toProfile = document.getElementById('toProfile');
+  const toForgotPassword = document.getElementById('toForgotPassword');
 
   if (toRegister) {
     toRegister.href = registerRoute();
@@ -329,6 +462,9 @@ function wireTopNav() {
   }
   if (toProfile) {
     toProfile.href = profileRoute();
+  }
+  if (toForgotPassword) {
+    toForgotPassword.href = forgotPasswordRoute();
   }
 }
 
@@ -343,6 +479,14 @@ async function main() {
     }
     if (page === 'register') {
       await handleRegisterPage();
+      return;
+    }
+    if (page === 'forgot-password') {
+      await handleForgotPasswordPage();
+      return;
+    }
+    if (page === 'reset-password') {
+      await handleResetPasswordPage();
       return;
     }
     if (page === 'profile') {

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import HTTPException, status
 
-from auth import hash_password
+from auth import hash_password, verify_password
 from models import ProfileCreate, UserCreate, UserPublic, UserRole, UserUpdate
 from stores import profile_store, user_store
 
@@ -75,3 +75,22 @@ def delete_user(user_id: str, current_user: dict) -> bool:
     if deleted:
         profile_store.delete_by_user_id(user_id)
     return deleted
+
+
+def set_user_password(user_id: str, new_password: str) -> dict | None:
+    hashed_password = hash_password(new_password)
+    return user_store.update_password(user_id=user_id, hashed_password=hashed_password)
+
+
+def change_password(user_id: str, current_password: str, new_password: str) -> dict:
+    user = user_store.get(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if not verify_password(current_password, user["hashed_password"]):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Contraseña actual incorrecta")
+
+    updated = set_user_password(user_id=user_id, new_password=new_password)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return updated

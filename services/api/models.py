@@ -381,3 +381,25 @@ class AuthMeResponse(BaseModel):
     email: str
     role: UserRole
     profile: Profile | None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not EMAIL_REGEX.fullmatch(normalized):
+            raise ValueError("email invalido")
+        return normalized
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)

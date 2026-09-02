@@ -33,6 +33,8 @@ _load_local_env_file()
 SECRET_KEY = os.getenv("AUTH_SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_MINUTES", "15"))
+PASSWORD_RESET_SCOPE = "password_reset"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 if not SECRET_KEY:
@@ -65,6 +67,39 @@ def create_access_token(user_id: str, expires_delta: timedelta | None = None) ->
     }
     encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt, int(expires_delta.total_seconds())
+
+
+def create_password_reset_token(user_id: str) -> tuple[str, int]:
+    expires_delta = timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+    expire_at = datetime.now(timezone.utc) + expires_delta
+    payload = {
+        "sub": user_id,
+        "scope": PASSWORD_RESET_SCOPE,
+        "exp": expire_at,
+    }
+    encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt, int(expires_delta.total_seconds())
+
+
+def verify_password_reset_token(token: str) -> str:
+    invalid_token_exception = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Token de recuperacion invalido o expirado",
+    )
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError as error:
+        raise invalid_token_exception from error
+
+    if payload.get("scope") != PASSWORD_RESET_SCOPE:
+        raise invalid_token_exception
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise invalid_token_exception
+
+    return user_id
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), users=Depends(get_user_store)) -> dict:
