@@ -72,11 +72,20 @@ function setMessage(node, message, type = '') {
 
 function consumeAuthNotice() {
   const key = 'brasaland.auth.notice';
-  const notice = localStorage.getItem(key);
-  if (notice) {
-    localStorage.removeItem(key);
+  const raw = localStorage.getItem(key);
+  if (!raw) {
+    return null;
   }
-  return notice;
+  localStorage.removeItem(key);
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return { message: raw, type: 'warn' };
+  }
+}
+
+function setAuthNotice(message, type = 'warn') {
+  localStorage.setItem('brasaland.auth.notice', JSON.stringify({ message, type }));
 }
 
 function clearFieldErrors(form) {
@@ -160,7 +169,7 @@ async function handleLoginPage() {
   apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
   const notice = consumeAuthNotice();
   if (notice) {
-    setMessage(status, notice, 'warn');
+    setMessage(status, notice.message, notice.type);
   }
 
   form.addEventListener('submit', async (event) => {
@@ -206,7 +215,7 @@ async function handleRegisterPage() {
   apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
   const notice = consumeAuthNotice();
   if (notice) {
-    setMessage(status, notice, 'warn');
+    setMessage(status, notice.message, notice.type);
   }
 
   form.addEventListener('submit', async (event) => {
@@ -259,6 +268,7 @@ async function handleForgotPasswordPage() {
   const form = document.getElementById('forgotPasswordForm');
   const status = document.getElementById('statusMessage');
   const apiBaseInput = document.getElementById('apiBaseUrl');
+  const submitBtn = form.querySelector('button[type="submit"]');
 
   apiBaseInput.value = getApiBase();
   apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
@@ -267,6 +277,7 @@ async function handleForgotPasswordPage() {
     event.preventDefault();
     clearFieldErrors(form);
     setMessage(status, 'Solicitando enlace de recuperación...', 'warn');
+    submitBtn.disabled = true;
 
     const payload = { email: form.elements.email.value.trim() };
 
@@ -281,10 +292,12 @@ async function handleForgotPasswordPage() {
       const error = await parseError(response, 'No se pudo procesar la solicitud');
       const hasFieldErrors = showFieldErrors(form, error.detail);
       setMessage(status, hasFieldErrors ? 'Revisa los campos marcados.' : error.message, 'error');
+      submitBtn.disabled = false;
       return;
     }
 
     // Siempre se muestra el mismo mensaje, exista o no el email, para evitar enumeracion de cuentas.
+    // El formulario queda deshabilitado para evitar solicitudes duplicadas.
     const result = await response.json();
     setMessage(status, result.message, 'ok');
     form.reset();
@@ -295,6 +308,7 @@ async function handleResetPasswordPage() {
   const form = document.getElementById('resetPasswordForm');
   const status = document.getElementById('statusMessage');
   const apiBaseInput = document.getElementById('apiBaseUrl');
+  const backToForgotLink = document.getElementById('backToForgotPassword');
 
   apiBaseInput.value = getApiBase();
   apiBaseInput.addEventListener('change', () => setApiBase(apiBaseInput.value.trim() || DEFAULT_API_BASE));
@@ -308,6 +322,7 @@ async function handleResetPasswordPage() {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearFieldErrors(form);
+    backToForgotLink.classList.add('hidden');
 
     const payload = {
       token: form.elements.token.value.trim(),
@@ -329,11 +344,12 @@ async function handleResetPasswordPage() {
 
     if (!response.ok) {
       const error = await parseError(response, 'No se pudo actualizar la contraseña');
-      setMessage(status, error.message, 'error');
+      setMessage(status, `${error.message} El enlace pudo haber expirado o ya fue utilizado.`, 'error');
+      backToForgotLink.classList.remove('hidden');
       return;
     }
 
-    setMessage(status, 'Contraseña actualizada. Redirigiendo al login...', 'ok');
+    setAuthNotice('Contraseña actualizada correctamente. Ya puedes iniciar sesión.', 'ok');
     window.location.href = loginRoute();
   });
 }

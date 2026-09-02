@@ -74,11 +74,11 @@ def forgot_password(payload: ForgotPasswordRequest) -> JSONResponse:
         # No revelamos si el email existe para evitar enumeracion de cuentas.
         return JSONResponse(content=generic_message)
 
-    reset_token, _ = create_password_reset_token(user_id=user["id"], hashed_password=user["hashed_password"])
+    reset_token, expires_in = create_password_reset_token(user_id=user["id"], hashed_password=user["hashed_password"])
     reset_url_base = os.getenv("PASSWORD_RESET_URL_BASE", DEFAULT_PASSWORD_RESET_URL_BASE)
     reset_link = f"{reset_url_base.rstrip('/')}/?token={reset_token}"
 
-    send_password_reset_email(to_email=user["email"], reset_link=reset_link)
+    send_password_reset_email(to_email=user["email"], reset_link=reset_link, expires_in_minutes=expires_in // 60)
 
     # El token nunca se devuelve en la respuesta: solo se entrega por email.
     return JSONResponse(content=generic_message)

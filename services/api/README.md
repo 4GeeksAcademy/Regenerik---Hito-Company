@@ -4,6 +4,16 @@ Backend service for incidents analysis and supplier directory management.
 
 Stack for supplier directory: FastAPI + TinyDB + Pydantic.
 
+## Password recovery email
+
+`POST /auth/forgot-password` sends the reset link by email using [Resend](https://resend.com) or [SendGrid](https://sendgrid.com), selected via the `EMAIL_PROVIDER` environment variable. No API key is ever hardcoded in the source; all values are loaded from environment variables (see `.env.example`).
+
+- `EMAIL_PROVIDER`: `resend` or `sendgrid`. If unset, the email is skipped and the reset link is only logged server-side (dev fallback).
+- `RESEND_API_KEY` / `RESEND_FROM_EMAIL`: required when `EMAIL_PROVIDER=resend`.
+- `SENDGRID_API_KEY` / `SENDGRID_FROM_EMAIL`: required when `EMAIL_PROVIDER=sendgrid`.
+- `PASSWORD_RESET_TOKEN_EXPIRE_MINUTES`: reset token expiry window (default `15`).
+- `PASSWORD_RESET_URL_BASE`: base URL of the frontend `/reset-password` page used to build the emailed link.
+
 ## Endpoints
 
 ### Suppliers directory (lightweight storage)

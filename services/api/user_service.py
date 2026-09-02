@@ -88,7 +88,7 @@ def change_password(user_id: str, current_password: str, new_password: str) -> d
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
     if not verify_password(current_password, user["hashed_password"]):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Contraseña actual incorrecta")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña actual incorrecta")
 
     updated = set_user_password(user_id=user_id, new_password=new_password)
     if updated is None:

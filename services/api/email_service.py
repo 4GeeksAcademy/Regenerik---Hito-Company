@@ -70,15 +70,58 @@ def _send_via_sendgrid(to_email: str, subject: str, html_body: str) -> None:
             raise RuntimeError(f"SendGrid respondio con status {response.status}")
 
 
-def send_password_reset_email(to_email: str, reset_link: str) -> bool:
+def send_password_reset_email(to_email: str, reset_link: str, expires_in_minutes: int) -> bool:
     """Envia el correo de recuperacion. Devuelve False si no se pudo enviar (sin filtrar el error al cliente)."""
     provider = os.getenv("EMAIL_PROVIDER", "").strip().lower()
     subject = "Recupera tu contraseña - Brasaland"
-    html_body = (
-        "<p>Recibimos una solicitud para restablecer tu contraseña.</p>"
-        f'<p><a href="{reset_link}">Haz click aquí para crear una nueva contraseña</a></p>'
-        "<p>Este enlace expira en 15 minutos. Si no solicitaste este cambio, ignora este mensaje.</p>"
-    )
+    html_body = f"""
+    <!doctype html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta charset="utf-8" />
+      </head>
+      <body style="margin:0; padding:24px 12px; background:#f6f1e8; font-family: Arial, Helvetica, sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" style="max-width:480px; background:#fffdf8; border-radius:12px; padding:24px;" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="font-size:18px; font-weight:bold; color:#1d1b1a; padding-bottom:12px;">
+                    Brasaland
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:15px; color:#1d1b1a; line-height:1.5; padding-bottom:20px;">
+                    Recibimos una solicitud para restablecer tu contraseña. Toca el botón para crear una nueva.
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:20px;">
+                    <a href="{reset_link}"
+                       style="display:inline-block; background:#bd3b13; color:#ffffff; text-decoration:none;
+                              font-size:16px; font-weight:bold; padding:14px 28px; border-radius:999px;">
+                      Restablecer contraseña
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:13px; color:#5f5a54; line-height:1.5;">
+                    Este enlace expira en {expires_in_minutes} minutos. Si no solicitaste este cambio, ignora este mensaje.
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:12px; color:#5f5a54; padding-top:16px; word-break:break-all;">
+                    Si el botón no funciona, copia y pega este enlace: {reset_link}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+    """
 
     try:
         if provider == "resend":
