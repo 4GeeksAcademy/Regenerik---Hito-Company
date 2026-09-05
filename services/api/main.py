@@ -7,9 +7,9 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+PACKAGES_DIR = Path(__file__).resolve().parents[2] / "packages"
+if str(PACKAGES_DIR) not in sys.path:
+    sys.path.insert(0, str(PACKAGES_DIR))
 
 from shared.incidents_analysis import (  # noqa: E402
     analyze_csv_text,
