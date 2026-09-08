@@ -7,7 +7,7 @@ const fileInput = document.getElementById('fileInput');
 const analyzeBtn = document.getElementById('analyzeBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const fileInfo = document.getElementById('fileInfo');
-const statusMessage = document.getElementById('statusMessage');
+const statusMessage = document.getElementById('statusMessage'); 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl');
 const resultsSection = document.getElementById('results');
 
@@ -47,6 +47,40 @@ let selectedFile = null;
 function setStatus(message, type = '') {
   statusMessage.textContent = message;
   statusMessage.className = `status ${type}`.trim();
+  // Clear any existing action buttons
+  const existingActions = document.querySelector('.status-actions');
+  if (existingActions) existingActions.remove();
+}
+
+function addRetryButton(parent, callback) {
+  const existingActions = parent.querySelector('.status-actions');
+  if (existingActions) existingActions.remove();
+  const actions = document.createElement('div');
+  actions.className = 'status-actions';
+  actions.style.marginTop = '8px';
+  const retryBtn = document.createElement('button');
+  retryBtn.textContent = 'Reintentar';
+  retryBtn.className = 'btn btn-small';
+  retryBtn.onclick = (e) => {
+    e.preventDefault();
+    callback();
+  };
+  actions.appendChild(retryBtn);
+  parent.appendChild(actions);
+}
+
+function addHomeLink(parent) {
+  const existingActions = parent.querySelector('.status-actions');
+  if (existingActions) existingActions.remove();
+  const actions = document.createElement('div');
+  actions.className = 'status-actions';
+  actions.style.marginTop = '8px';
+  const link = document.createElement('a');
+  link.href = homeRoute();
+  link.textContent = 'Volver al inicio';
+  link.className = 'btn btn-small';
+  actions.appendChild(link);
+  parent.appendChild(actions);
 }
 
 function setAuthMessage(message, type = '') {
@@ -229,7 +263,7 @@ async function loadProfile() {
       setProfileMessage('Aún no tienes perfil. Completa tus datos y guarda.', 'warn');
       return;
     }
-    setProfileMessage(`Error al cargar perfil: ${error.message}`, 'error');
+    setProfileMessage('No se pudo cargar el perfil. Intenta recargar la página.', 'error');
   }
 }
 
@@ -257,7 +291,7 @@ async function saveProfile(event) {
     fillProfileForm(profile);
     setProfileMessage('Perfil actualizado correctamente.', 'ok');
   } catch (error) {
-    setProfileMessage(`Error al guardar perfil: ${error.message}`, 'error');
+    setProfileMessage('No se pudo guardar el perfil. Revisa los datos e intenta de nuevo.', 'error');
   }
 }
 
@@ -281,7 +315,8 @@ async function login(event) {
     await initializeAuthenticatedSession();
     setAuthMessage('Inicio de sesión exitoso.', 'ok');
   } catch (error) {
-    setAuthMessage(`No se pudo iniciar sesión: ${error.message}`, 'error');
+    setAuthMessage('No se pudo iniciar sesión. Verifica tu correo y contraseña.', 'error');
+    addRetryButton(authMessage, () => login(new Event('submit')));
   }
 }
 
@@ -317,7 +352,8 @@ async function register(event) {
     setAuthMessage('Cuenta creada y sesión iniciada.', 'ok');
     registerForm.reset();
   } catch (error) {
-    setAuthMessage(`No se pudo registrar la cuenta: ${error.message}`, 'error');
+    setAuthMessage('No se pudo completar el registro. Verifica tus datos e intenta de nuevo.', 'error');
+    addRetryButton(authMessage, () => register(new Event('submit')));
   }
 }
 
@@ -364,25 +400,33 @@ async function analyzeFile() {
     downloadBtn.disabled = false;
     setStatus('Análisis completado correctamente.', 'ok');
   } catch (error) {
-    setStatus(`Error: ${error.message}`, 'error');
+    setStatus('Error al analizar el archivo. Verifica que el CSV tenga el formato correcto.', 'error');
+    addRetryButton(statusMessage, () => analyzeFile());
   } finally {
     analyzeBtn.disabled = false;
   }
 }
 
 function renderSummary(summary) {
-  const totals = summary.totals;
-  const invalid = summary.invalid_breakdown;
-  const sat = summary.satisfaction_index;
+  if (!summary || !summary.totals || !summary.invalid_breakdown || !summary.satisfaction_index) {
+    resultsSection.classList.remove('hidden');
+    kpis.innerHTML = '<p class="error-placeholder">No se pudieron cargar los resultados del análisis.</p>';
+    setStatus('El análisis devolvió datos incompletos. Intenta de nuevo.', 'error');
+    return;
+  }
+
+  const totals = summary.totals || {};
+  const invalid = summary.invalid_breakdown || {};
+  const sat = summary.satisfaction_index || {};
 
   resultsSection.classList.remove('hidden');
 
   kpis.innerHTML = '';
   const cards = [
-    ['Total', totals.total_records],
-    ['Válidos', totals.valid_records],
-    ['Inválidos', totals.invalid_records],
-    ['Promedio satisfacción', sat.average_score.toFixed(2)],
+    ['Total', totals.total_records ?? '—'],
+    ['Válidos', totals.valid_records ?? '—'],
+    ['Inválidos', totals.invalid_records ?? '—'],
+    ['Promedio satisfacción', sat.average_score != null ? Number(sat.average_score).toFixed(2) : '—'],
   ];
   cards.forEach(([label, value]) => {
     const article = document.createElement('article');
@@ -392,59 +436,64 @@ function renderSummary(summary) {
   });
 
   invalidList.innerHTML = `
-    <li>Falta location_id: <strong>${invalid.missing_location_id}</strong></li>
-    <li>Category faltante/inválida: <strong>${invalid.invalid_or_missing_category}</strong></li>
-    <li>Description vacía/corta: <strong>${invalid.empty_description}</strong></li>
-    <li>CLOSED sin satisfaction_score: <strong>${invalid.closed_without_score}</strong></li>
+    <li>Falta location_id: <strong>${invalid.missing_location_id ?? 0}</strong></li>
+    <li>Category faltante/inválida: <strong>${invalid.invalid_or_missing_category ?? 0}</strong></li>
+    <li>Description vacía/corta: <strong>${invalid.empty_description ?? 0}</strong></li>
+    <li>CLOSED sin satisfaction_score: <strong>${invalid.closed_without_score ?? 0}</strong></li>
   `;
 
   satisfaction.innerHTML = `
-    <p>Scored cases: <strong>${sat.scored_cases}</strong> de <strong>${sat.closed_cases}</strong></p>
-    <p>Average score: <strong>${sat.average_score.toFixed(2)} / 5.00</strong></p>
+    <p>Scored cases: <strong>${sat.scored_cases ?? 0}</strong> de <strong>${sat.closed_cases ?? 0}</strong></p>
+    <p>Average score: <strong>${sat.average_score != null ? Number(sat.average_score).toFixed(2) : '—'} / 5.00</strong></p>
     <ul>
-      ${sat.distribution.map((item) => `<li>Score ${item.score} (${item.label}): <strong>${item.count}</strong></li>`).join('')}
+      ${(sat.distribution || []).map((item) => `<li>Score ${item.score} (${item.label || '—'}): <strong>${item.count ?? 0}</strong></li>`).join('')}
     </ul>
   `;
 
-  categoryTableBody.innerHTML = summary.breakdown_by_category
+  categoryTableBody.innerHTML = (summary.breakdown_by_category || [])
     .map(
-      (item) => `<tr><td>${item.category}</td><td>${item.count}</td><td>${item.percentage.toFixed(1)}%</td></tr>`
+      (item) => `<tr><td>${item.category || '—'}</td><td>${item.count ?? 0}</td><td>${item.percentage != null ? Number(item.percentage).toFixed(1) : '—'}%</td></tr>`
     )
     .join('');
 
-  statusTableBody.innerHTML = summary.breakdown_by_status
+  statusTableBody.innerHTML = (summary.breakdown_by_status || [])
     .map(
-      (item) => `<tr><td>${item.status}</td><td>${item.count}</td><td>${item.percentage.toFixed(1)}%</td></tr>`
+      (item) => `<tr><td>${item.status || '—'}</td><td>${item.count ?? 0}</td><td>${item.percentage != null ? Number(item.percentage).toFixed(1) : '—'}%</td></tr>`
     )
     .join('');
 
   const totalInvalid =
-    invalid.missing_location_id +
-    invalid.invalid_or_missing_category +
-    invalid.empty_description +
-    invalid.closed_without_score;
+    (invalid.missing_location_id || 0) +
+    (invalid.invalid_or_missing_category || 0) +
+    (invalid.empty_description || 0) +
+    (invalid.closed_without_score || 0);
 
   if (totalInvalid > 0) {
-    setStatus(`Atención: se detectaron ${totals.invalid_records} registros inválidos.`, 'warn');
+    setStatus(`Atención: se detectaron ${totals.invalid_records ?? 'varios'} registros inválidos.`, 'warn');
   }
 }
 
 async function downloadResults() {
+  let objectUrl = null;
   try {
     const blob = await apiFetch('/api/incidents/results/export', { responseType: 'blob' });
 
-    const url = URL.createObjectURL(blob);
+    objectUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = objectUrl;
     a.download = 'results.csv';
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
 
     setStatus('Descarga completada.', 'ok');
   } catch (error) {
-    setStatus(`Error al descargar: ${error.message}`, 'error');
+    setStatus('No se pudo descargar el archivo. Intenta de nuevo.', 'error');
+    addRetryButton(statusMessage, () => downloadResults());
+  } finally {
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+    }
   }
 }
 

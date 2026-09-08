@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -9,6 +10,8 @@ from uuid import uuid4
 from tinydb import Query, TinyDB
 
 from models import Profile, ProfileCreate, ProfileUpdate, Supplier, SupplierCreate, User, UserCreate, UserUpdate
+
+logger = logging.getLogger(__name__)
 
 SUPPLIERS_SEED: list[dict[str, Any]] = [
     {
@@ -167,14 +170,25 @@ class SupplierStore:
     def __init__(self, storage_path: Path) -> None:
         self.storage_path = storage_path
         self._lock = Lock()
-        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
-        self._db = TinyDB(self.storage_path, ensure_ascii=False, indent=2)
-        self._table = self._db.table("suppliers")
-        self._query = Query()
-        self._ensure_storage_ready()
+        try:
+            self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+            self._db = TinyDB(self.storage_path, ensure_ascii=False, indent=2)
+            self._table = self._db.table("suppliers")
+            self._query = Query()
+            self._ensure_storage_ready()
+        except OSError as error:
+            logger.error("Error de E/S al inicializar SupplierStore en %s: %s", storage_path, error)
+            raise RuntimeError(f"No se pudo inicializar el almacenamiento de proveedores: {error}") from error
+        except Exception as error:
+            logger.exception("Error inesperado al inicializar SupplierStore en %s", storage_path)
+            raise RuntimeError(f"Error inesperado al inicializar proveedores: {error}") from error
 
     def _ensure_storage_ready(self) -> None:
-        self.seed_suppliers(SUPPLIERS_SEED)
+        try:
+            self.seed_suppliers(SUPPLIERS_SEED)
+        except Exception as error:
+            logger.error("Error al sembrar proveedores: %s", error)
+            raise RuntimeError(f"No se pudieron cargar los proveedores iniciales: {error}") from error
 
     def seed_suppliers(self, suppliers_seed: list[dict[str, Any]]) -> tuple[int, int]:
         inserted = 0
@@ -267,10 +281,17 @@ class UserStore:
     def __init__(self, storage_path: Path) -> None:
         self.storage_path = storage_path
         self._lock = Lock()
-        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
-        self._db = TinyDB(self.storage_path, ensure_ascii=False, indent=2)
-        self._table = self._db.table("users")
-        self._query = Query()
+        try:
+            self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+            self._db = TinyDB(self.storage_path, ensure_ascii=False, indent=2)
+            self._table = self._db.table("users")
+            self._query = Query()
+        except OSError as error:
+            logger.error("Error de E/S al inicializar UserStore en %s: %s", storage_path, error)
+            raise RuntimeError(f"No se pudo inicializar el almacenamiento de usuarios: {error}") from error
+        except Exception as error:
+            logger.exception("Error inesperado al inicializar UserStore en %s", storage_path)
+            raise RuntimeError(f"Error inesperado al inicializar usuarios: {error}") from error
 
     def count(self) -> int:
         return len(self._table)
@@ -353,10 +374,17 @@ class ProfileStore:
     def __init__(self, storage_path: Path) -> None:
         self.storage_path = storage_path
         self._lock = Lock()
-        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
-        self._db = TinyDB(self.storage_path, ensure_ascii=False, indent=2)
-        self._table = self._db.table("profiles")
-        self._query = Query()
+        try:
+            self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+            self._db = TinyDB(self.storage_path, ensure_ascii=False, indent=2)
+            self._table = self._db.table("profiles")
+            self._query = Query()
+        except OSError as error:
+            logger.error("Error de E/S al inicializar ProfileStore en %s: %s", storage_path, error)
+            raise RuntimeError(f"No se pudo inicializar el almacenamiento de perfiles: {error}") from error
+        except Exception as error:
+            logger.exception("Error inesperado al inicializar ProfileStore en %s", storage_path)
+            raise RuntimeError(f"Error inesperado al inicializar perfiles: {error}") from error
 
     def list(self) -> list[dict[str, Any]]:
         return self._table.all()

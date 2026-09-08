@@ -32,7 +32,7 @@ def update_my_profile(payload: ProfileUpdate, current_user: dict = Depends(get_c
                 )
             )
         except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
+            raise HTTPException(status_code=400, detail="Datos de perfil inválidos. Verifica los campos e intenta de nuevo.") from error
         return JSONResponse(content=created)
 
     updated = profile_store.update(profile_id=profile["id"], payload=payload)

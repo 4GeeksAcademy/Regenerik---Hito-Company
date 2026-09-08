@@ -535,7 +535,7 @@ async function main() {
   } catch (error) {
     const status = document.getElementById('statusMessage');
     if (status) {
-      setMessage(status, error.message || 'Error inesperado', 'error');
+      setMessage(status, 'Ocurrió un error. Intenta recargar la página.', 'error');
     }
   }
 }

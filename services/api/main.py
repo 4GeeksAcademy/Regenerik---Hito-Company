@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
+
+import logging
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +27,7 @@ from routes.suppliers import router as suppliers_router  # noqa: E402
 from routes.users import router as users_router  # noqa: E402
 
 app = FastAPI(title="Brasaland Operations API", version="1.0.0")
+logger = logging.getLogger(__name__)
 
 app.add_middleware(
     CORSMiddleware,
@@ -72,7 +76,11 @@ async def analyze_incidents(file: UploadFile = File(...)) -> JSONResponse:
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except Exception as error:
-        raise HTTPException(status_code=400, detail=f"No se pudo analizar el CSV: {error}") from error
+        logger.exception("Error inesperado al analizar CSV")
+        raise HTTPException(
+            status_code=500,
+            detail="Ocurrió un error al procesar el archivo. Verifica el formato e intenta de nuevo.",
+        ) from error
 
     LATEST_SUMMARY = summary
     LATEST_RESULTS_CSV = csv_output

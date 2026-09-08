@@ -27,18 +27,21 @@ def _send_via_resend(to_email: str, subject: str, html_body: str) -> None:
         }
     ).encode("utf-8")
 
-    request = urllib.request.Request(
-        RESEND_API_URL,
-        data=payload,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=10) as response:
-        if response.status >= 300:
-            raise RuntimeError(f"Resend respondio con status {response.status}")
+    try:
+        request = urllib.request.Request(
+            RESEND_API_URL,
+            data=payload,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:
+            if response.status >= 300:
+                raise RuntimeError(f"Resend respondio con status {response.status}")
+    except urllib.error.URLError as error:
+        raise RuntimeError(f"No se pudo conectar con el servicio de email: {error.reason}") from error
 
 
 def _send_via_sendgrid(to_email: str, subject: str, html_body: str) -> None:
@@ -56,18 +59,21 @@ def _send_via_sendgrid(to_email: str, subject: str, html_body: str) -> None:
         }
     ).encode("utf-8")
 
-    request = urllib.request.Request(
-        SENDGRID_API_URL,
-        data=payload,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=10) as response:
-        if response.status >= 300:
-            raise RuntimeError(f"SendGrid respondio con status {response.status}")
+    try:
+        request = urllib.request.Request(
+            SENDGRID_API_URL,
+            data=payload,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:
+            if response.status >= 300:
+                raise RuntimeError(f"SendGrid respondio con status {response.status}")
+    except urllib.error.URLError as error:
+        raise RuntimeError(f"No se pudo conectar con el servicio de email: {error.reason}") from error
 
 
 def send_password_reset_email(to_email: str, reset_link: str, expires_in_minutes: int) -> bool:

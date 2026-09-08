@@ -224,9 +224,18 @@ def analyze_csv_text(csv_text: str) -> AnalysisResult:
 
 
 def analyze_csv_file(file_path: Path) -> AnalysisResult:
-    with file_path.open("r", encoding="utf-8-sig", newline="") as source:
-        reader = csv.DictReader(source)
-        return analyze_reader(reader)
+    try:
+        with file_path.open("r", encoding="utf-8-sig", newline="") as source:
+            reader = csv.DictReader(source)
+            return analyze_reader(reader)
+    except FileNotFoundError:
+        raise ValueError(f"Archivo no encontrado: {file_path}")
+    except PermissionError:
+        raise ValueError(f"Sin permisos de lectura para: {file_path}")
+    except csv.Error as error:
+        raise ValueError(f"Error al parsear el CSV: {error}")
+    except UnicodeDecodeError as error:
+        raise ValueError(f"Error de codificación en {file_path}: {error}")
 
 
 def calculate_average_score(result: AnalysisResult) -> float:

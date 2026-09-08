@@ -88,65 +88,82 @@ def print_report(file_path: Path, result: AnalysisResult) -> None:
 
 
 def export_metrics_csv(result: AnalysisResult, destination: Path) -> None:
-    summary = {
-        "totals": {
-            "total_records": result.total,
-            "valid_records": result.valid,
-            "invalid_records": result.invalid,
-        },
-        "invalid_breakdown": {
-            "missing_location_id": result.invalid_counts["missing_location"],
-            "invalid_or_missing_category": result.invalid_counts["invalid_category"],
-            "empty_description": result.invalid_counts["empty_description"],
-            "closed_without_score": result.invalid_counts["closed_without_score"],
-        },
-        "breakdown_by_category": [
-            {
-                "category": category,
-                "count": result.by_category[category],
-                "percentage": (result.by_category[category] / result.valid * 100) if result.valid else 0.0,
-            }
-            for category in VALID_CATEGORIES
-        ],
-        "breakdown_by_status": [
-            {
-                "status": status,
-                "count": result.by_status[status],
-                "percentage": (result.by_status[status] / result.valid * 100) if result.valid else 0.0,
-            }
-            for status in VALID_STATUSES
-        ],
-        "satisfaction_index": {
-            "closed_cases": result.closed_cases,
-            "scored_cases": result.scored_closed_cases,
-            "average_score": calculate_average_score(result),
-            "distribution": [
-                {"score": score, "label": SCORE_LABELS[score], "count": result.by_score[score]}
-                for score in range(1, 6)
+    try:
+        summary = {
+            "totals": {
+                "total_records": result.total,
+                "valid_records": result.valid,
+                "invalid_records": result.invalid,
+            },
+            "invalid_breakdown": {
+                "missing_location_id": result.invalid_counts["missing_location"],
+                "invalid_or_missing_category": result.invalid_counts["invalid_category"],
+                "empty_description": result.invalid_counts["empty_description"],
+                "closed_without_score": result.invalid_counts["closed_without_score"],
+            },
+            "breakdown_by_category": [
+                {
+                    "category": category,
+                    "count": result.by_category[category],
+                    "percentage": (result.by_category[category] / result.valid * 100) if result.valid else 0.0,
+                }
+                for category in VALID_CATEGORIES
             ],
-        },
-    }
+            "breakdown_by_status": [
+                {
+                    "status": status,
+                    "count": result.by_status[status],
+                    "percentage": (result.by_status[status] / result.valid * 100) if result.valid else 0.0,
+                }
+                for status in VALID_STATUSES
+            ],
+            "satisfaction_index": {
+                "closed_cases": result.closed_cases,
+                "scored_cases": result.scored_closed_cases,
+                "average_score": calculate_average_score(result),
+                "distribution": [
+                    {"score": score, "label": SCORE_LABELS[score], "count": result.by_score[score]}
+                    for score in range(1, 6)
+                ],
+            },
+        }
 
-    rows = to_metrics_rows(summary)
-    content = metrics_rows_to_csv(rows)
-    destination.write_text(content, encoding="utf-8")
+        rows = to_metrics_rows(summary)
+        content = metrics_rows_to_csv(rows)
+        destination.write_text(content, encoding="utf-8")
+    except PermissionError:
+        print(f"Error: sin permisos para escribir en: {destination}", file=sys.stderr)
+        sys.exit(1)
+    except OSError as error:
+        print(f"Error de E/S al escribir el archivo CSV: {error}", file=sys.stderr)
+        sys.exit(1)
 
 
 def main() -> None:
     if len(sys.argv) != 2:
-        print("Uso: python analyze.py incidents-brasaland.csv")
+        print("Uso: python analyze.py incidents-brasaland.csv", file=sys.stderr)
         sys.exit(1)
 
     file_path = Path(sys.argv[1])
     if not file_path.exists():
-        print(f"Error: archivo no encontrado: {file_path}")
+        print(f"Error: archivo no encontrado: {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    if not file_path.is_file():
+        print(f"Error: la ruta no es un archivo: {file_path}", file=sys.stderr)
         sys.exit(1)
 
     try:
         result = analyze_csv_file(file_path)
         print_report(file_path, result)
+    except PermissionError:
+        print(f"Error: sin permisos de lectura para: {file_path}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as error:
+        print(f"Error de validación: {error}", file=sys.stderr)
+        sys.exit(1)
     except Exception as error:
-        print(f"Error al analizar archivo: {error}")
+        print(f"Error inesperado al analizar archivo: {error}", file=sys.stderr)
         sys.exit(1)
 
     if file_path.name == "incidents-brasaland.csv":

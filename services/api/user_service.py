@@ -31,9 +31,9 @@ def create_user(payload: UserCreate) -> dict:
                 address=payload.address,
             )
         )
-    except Exception as error:
+    except Exception:
         user_store.delete(created["id"])
-        raise error
+        raise
 
     return created
 

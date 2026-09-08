@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -15,6 +17,7 @@ from user_service import (
     update_user as svc_update_user,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
 
 
@@ -23,7 +26,8 @@ def create_user(payload: UserCreate) -> JSONResponse:
     try:
         created = svc_create_user(payload=payload)
     except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
+        logger.warning("Error al crear usuario: %s", error)
+        raise HTTPException(status_code=400, detail="No se pudo crear el usuario. Verifica los datos e intenta de nuevo.") from error
 
     return JSONResponse(status_code=201, content=to_public_user(created))
 
@@ -49,7 +53,8 @@ def update_user(user_id: str, payload: UserUpdate, current_user: dict = Depends(
     try:
         updated = svc_update_user(user_id=user_id, payload=payload, current_user=current_user)
     except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
+        logger.warning("Error al actualizar usuario: %s", error)
+        raise HTTPException(status_code=400, detail="No se pudo actualizar el usuario. Verifica los datos e intenta de nuevo.") from error
 
     if updated is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")

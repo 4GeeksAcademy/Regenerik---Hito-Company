@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,8 +22,15 @@ class ValidationOutcome:
 
 
 def load_rules(rules_path: Path) -> dict:
-    with rules_path.open("r", encoding="utf-8") as file:
-        rules = json.load(file)
+    try:
+        with rules_path.open("r", encoding="utf-8") as file:
+            rules = json.load(file)
+    except FileNotFoundError:
+        raise ValueError(f"Archivo de reglas no encontrado: {rules_path}")
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Error al parsear el archivo de reglas JSON: {error}")
+    except PermissionError:
+        raise ValueError(f"Sin permisos para leer el archivo de reglas: {rules_path}")
 
     required_fields = rules.get("required_fields")
     allowed_values = rules.get("allowed_values")
@@ -107,54 +115,60 @@ def run_pipeline(input_csv: Path, rules_path: Path, output_dir: Path) -> dict:
     invalid_values_counter: defaultdict[str, Counter[str]] = defaultdict(Counter)
     allowed_field_counter: defaultdict[str, Counter[str]] = defaultdict(Counter)
 
-    with input_csv.open("r", encoding="utf-8-sig", newline="") as src:
-        reader = csv.DictReader(src)
-        fieldnames = ensure_headers(reader.fieldnames, rules)
+    try:
+        with input_csv.open("r", encoding="utf-8-sig", newline="") as src:
+            reader = csv.DictReader(src)
+            fieldnames = ensure_headers(reader.fieldnames, rules)
 
-        invalid_fieldnames = fieldnames + ["source_row", "validation_errors"]
+            invalid_fieldnames = fieldnames + ["source_row", "validation_errors"]
 
-        with valid_path.open("w", encoding="utf-8", newline="") as valid_file, invalid_path.open(
-            "w", encoding="utf-8", newline=""
-        ) as invalid_file:
-            valid_writer = csv.DictWriter(valid_file, fieldnames=fieldnames)
-            invalid_writer = csv.DictWriter(invalid_file, fieldnames=invalid_fieldnames)
+            with valid_path.open("w", encoding="utf-8", newline="") as valid_file, invalid_path.open(
+                "w", encoding="utf-8", newline=""
+            ) as invalid_file:
+                valid_writer = csv.DictWriter(valid_file, fieldnames=fieldnames)
+                invalid_writer = csv.DictWriter(invalid_file, fieldnames=invalid_fieldnames)
 
-            valid_writer.writeheader()
-            invalid_writer.writeheader()
+                valid_writer.writeheader()
+                invalid_writer.writeheader()
 
-            # Procesamiento en streaming: escala bien para archivos grandes.
-            for row_number, row in enumerate(reader, start=2):
-                total_records += 1
-                outcome = validate_row(row, rules)
+                for row_number, row in enumerate(reader, start=2):
+                    total_records += 1
+                    outcome = validate_row(row, rules)
 
-                if outcome.errors:
-                    invalid_records += 1
-                    if outcome.has_missing:
-                        incomplete_records += 1
-                    if outcome.has_invalid_value:
-                        corrupt_records += 1
+                    if outcome.errors:
+                        invalid_records += 1
+                        if outcome.has_missing:
+                            incomplete_records += 1
+                        if outcome.has_invalid_value:
+                            corrupt_records += 1
 
-                    for error in outcome.errors:
-                        if error.startswith("MISSING:"):
-                            _, field = error.split(":", maxsplit=1)
-                            missing_fields_counter[field] += 1
-                        elif error.startswith("INVALID:"):
-                            _, field, value = error.split(":", maxsplit=2)
-                            invalid_values_counter[field][value] += 1
+                        for error in outcome.errors:
+                            if error.startswith("MISSING:"):
+                                _, field = error.split(":", maxsplit=1)
+                                missing_fields_counter[field] += 1
+                            elif error.startswith("INVALID:"):
+                                _, field, value = error.split(":", maxsplit=2)
+                                invalid_values_counter[field][value] += 1
 
-                    invalid_row = dict(row)
-                    invalid_row["source_row"] = row_number
-                    invalid_row["validation_errors"] = " | ".join(outcome.errors)
-                    invalid_writer.writerow(invalid_row)
-                    continue
+                        invalid_row = dict(row)
+                        invalid_row["source_row"] = row_number
+                        invalid_row["validation_errors"] = " | ".join(outcome.errors)
+                        invalid_writer.writerow(invalid_row)
+                        continue
 
-                valid_records += 1
-                valid_writer.writerow(row)
+                    valid_records += 1
+                    valid_writer.writerow(row)
 
-                for field in rules["allowed_values"].keys():
-                    value = (row.get(field) or "").strip()
-                    if value:
-                        allowed_field_counter[field][value] += 1
+                    for field in rules["allowed_values"].keys():
+                        value = (row.get(field) or "").strip()
+                        if value:
+                            allowed_field_counter[field][value] += 1
+    except FileNotFoundError:
+        raise ValueError(f"Archivo de entrada no encontrado: {input_csv}")
+    except PermissionError:
+        raise ValueError(f"Sin permisos para leer/escribir archivos en: {input_csv}")
+    except csv.Error as error:
+        raise ValueError(f"Error al procesar el CSV: {error}")
 
     invalid_rate = (invalid_records / total_records * 100) if total_records else 0.0
 
@@ -186,8 +200,13 @@ def run_pipeline(input_csv: Path, rules_path: Path, output_dir: Path) -> dict:
         },
     }
 
-    with summary_path.open("w", encoding="utf-8") as summary_file:
-        json.dump(summary, summary_file, ensure_ascii=False, indent=2)
+    try:
+        with summary_path.open("w", encoding="utf-8") as summary_file:
+            json.dump(summary, summary_file, ensure_ascii=False, indent=2)
+    except PermissionError:
+        raise ValueError(f"Sin permisos para escribir el resumen en: {summary_path}")
+    except OSError as error:
+        raise ValueError(f"Error de E/S al escribir el resumen: {error}")
 
     return summary
 
@@ -211,25 +230,34 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    args = build_parser().parse_args()
+    try:
+        args = build_parser().parse_args()
 
-    input_csv = Path(args.input)
-    rules_path = Path(args.rules)
-    output_dir = Path(args.output_dir)
+        input_csv = Path(args.input)
+        rules_path = Path(args.rules)
+        output_dir = Path(args.output_dir)
 
-    if not input_csv.exists():
-        raise FileNotFoundError(f"No existe el archivo de entrada: {input_csv}")
-    if not rules_path.exists():
-        raise FileNotFoundError(f"No existe el archivo de reglas: {rules_path}")
+        if not input_csv.exists():
+            print(f"Error: no existe el archivo de entrada: {input_csv}", file=sys.stderr)
+            sys.exit(1)
+        if not rules_path.exists():
+            print(f"Error: no existe el archivo de reglas: {rules_path}", file=sys.stderr)
+            sys.exit(1)
 
-    summary = run_pipeline(input_csv=input_csv, rules_path=rules_path, output_dir=output_dir)
+        summary = run_pipeline(input_csv=input_csv, rules_path=rules_path, output_dir=output_dir)
 
-    print("Pipeline completado")
-    print(f"- Total: {summary['totals']['total_records']}")
-    print(f"- Válidos: {summary['totals']['valid_records']}")
-    print(f"- Inválidos: {summary['totals']['invalid_records']}")
-    print(f"- % inválidos: {summary['totals']['invalid_rate_percent']}")
-    print(f"- Resumen: {summary['outputs']['summary']}")
+        print("Pipeline completado")
+        print(f"- Total: {summary['totals']['total_records']}")
+        print(f"- Válidos: {summary['totals']['valid_records']}")
+        print(f"- Inválidos: {summary['totals']['invalid_records']}")
+        print(f"- % inválidos: {summary['totals']['invalid_rate_percent']}")
+        print(f"- Resumen: {summary['outputs']['summary']}")
+    except ValueError as error:
+        print(f"Error de configuración: {error}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as error:
+        print(f"Error inesperado: {error}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

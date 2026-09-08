@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
@@ -13,6 +15,7 @@ from models import (
 )
 from stores import supplier_store
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["suppliers"])
 store = supplier_store
 
@@ -28,7 +31,8 @@ def list_suppliers(
         validated_category = validate_filter_category(category)
         validated_status = validate_filter_status(status)
     except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
+        logger.warning("Parámetros de filtro inválidos: %s", error)
+        raise HTTPException(status_code=400, detail="Parámetros de filtro inválidos. Verifica los valores enviados.") from error
 
     suppliers = store.list(
         country=validated_country,
