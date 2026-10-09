@@ -3,6 +3,13 @@ const {
   normalizeApiBase,
   formatFileSize,
 } = require('../utils');
+const { readFileSync } = require('node:fs');
+const { runInNewContext } = require('node:vm');
+
+test('browser helpers do not collide with app lexical declarations', () => {
+  const source = readFileSync(require.resolve('../utils'), 'utf8');
+  expect(() => runInNewContext(`${source}\nconst { parseApiError, normalizeApiBase, formatFileSize } = window.BackofficeUtils;`, { window: {} })).not.toThrow();
+});
 
 describe('parseApiError', () => {
   test('returns a string API detail', () => {
