@@ -56,34 +56,11 @@ function setStatus(message, type = '') {
 }
 
 function addRetryButton(parent, callback) {
-  const existingActions = parent.querySelector('.status-actions');
-  if (existingActions) existingActions.remove();
-  const actions = document.createElement('div');
-  actions.className = 'status-actions';
-  actions.style.marginTop = '8px';
-  const retryBtn = document.createElement('button');
-  retryBtn.textContent = 'Reintentar';
-  retryBtn.className = 'btn btn-small';
-  retryBtn.onclick = (e) => {
-    e.preventDefault();
-    callback();
-  };
-  actions.appendChild(retryBtn);
-  parent.appendChild(actions);
+  window.BrasalandStatusActions.render(parent, { label: 'Reintentar', onAction: callback });
 }
 
 function addHomeLink(parent) {
-  const existingActions = parent.querySelector('.status-actions');
-  if (existingActions) existingActions.remove();
-  const actions = document.createElement('div');
-  actions.className = 'status-actions';
-  actions.style.marginTop = '8px';
-  const link = document.createElement('a');
-  link.href = homeRoute();
-  link.textContent = 'Volver al inicio';
-  link.className = 'btn btn-small';
-  actions.appendChild(link);
-  parent.appendChild(actions);
+  window.BrasalandStatusActions.render(parent, { label: 'Volver al inicio', href: homeRoute() });
 }
 
 function setAuthMessage(message, type = '') {
@@ -172,6 +149,7 @@ function showAuthPanel(mode = 'login') {
   protectedApp.classList.add('hidden');
   authPanel.classList.remove('hidden');
   showAuthView(mode);
+  document.querySelector('main').setAttribute('aria-busy', 'false');
 }
 
 function showProtectedApp() {
@@ -245,26 +223,6 @@ function fillProfileForm(profile) {
   profileForm.elements.name.value = profile?.name || '';
   profileForm.elements.phone.value = profile?.phone || '';
   profileForm.elements.address.value = profile?.address || '';
-}
-
-async function loadProfile() {
-  try {
-    const profile = await apiFetch('/profiles/me');
-    fillProfileForm(profile);
-    setProfileMessage('Perfil cargado.', 'ok');
-  } catch (error) {
-    if (error.message.includes('404')) {
-      fillProfileForm(null);
-      setProfileMessage('Aún no tienes perfil. Completa tus datos y guarda.', 'warn');
-      return;
-    }
-    if (error.message === 'Perfil no encontrado') {
-      fillProfileForm(null);
-      setProfileMessage('Aún no tienes perfil. Completa tus datos y guarda.', 'warn');
-      return;
-    }
-    setProfileMessage('No se pudo cargar el perfil. Intenta recargar la página.', 'error');
-  }
 }
 
 async function saveProfile(event) {
@@ -367,9 +325,11 @@ async function initializeAuthenticatedSession() {
     updateSessionUi(me);
     profileEmail.textContent = me.email;
     profileRole.textContent = me.role;
+    fillProfileForm(me.profile);
+    setProfileMessage(me.profile ? 'Perfil cargado.' : 'Aún no tienes perfil. Completa tus datos y guarda.', me.profile ? 'ok' : 'warn');
     showProtectedApp();
-    await loadProfile();
     await fetchSuppliers();
+    document.querySelector('main').setAttribute('aria-busy', 'false');
   } catch (error) {
     clearToken();
     clearSessionUi();
