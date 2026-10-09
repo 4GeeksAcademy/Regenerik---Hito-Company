@@ -18,6 +18,33 @@ const origin = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:8080';
 const api = process.env.AUDIT_API || 'http://127.0.0.1:8000';
 const directory = resolve('audit', phase);
 await mkdir(directory, { recursive: true });
+async function captureReports() {
+  const stored = JSON.parse(await readFile(resolve(directory, 'summary.json'), 'utf8'));
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 1350, height: 1100 } });
+    for (const target of stored.pages) {
+      const sample = target.samples.find((candidate) => candidate.scores.performance === target.median.scores.performance) || target.samples[0];
+      const filename = `${target.name}-${target.device}-${sample.run}.html`;
+      await page.goto(`${origin}/audit/${phase}/${filename}`, { waitUntil: 'networkidle' });
+      await page.waitForFunction(() => ['Performance', 'Accessibility', 'Best Practices', 'SEO']
+        .every((label) => document.body.innerText.includes(label)));
+      const evidence = `${target.name}-${target.device}-lighthouse.png`;
+      await page.screenshot({ path: resolve(directory, evidence) });
+      target.reportScreenshot = { file: evidence, source: filename, run: sample.run };
+      console.log(`Captured ${phase}/${evidence} from run ${sample.run}`);
+    }
+    await writeFile(resolve(directory, 'summary.json'), JSON.stringify(stored, null, 2));
+  } finally {
+    await browser.close();
+  }
+}
+
+if (process.argv.includes('--capture-reports')) {
+  await captureReports();
+  process.exit(0);
+}
+
 const identity = { email: 'lighthouse@example.test', password: randomBytes(24).toString('hex'), name: 'Lighthouse Audit' };
 identity.email = `lighthouse-${randomBytes(6).toString('hex')}@example.test`;
 async function apiJson(path, options = {}) {

@@ -209,6 +209,11 @@
           "best-practices": 100,
           "seo": 100
         }
+      },
+      "reportScreenshot": {
+        "file": "website-home-mobile-lighthouse.png",
+        "source": "website-home-mobile-1.html",
+        "run": 1
       }
     },
     {
@@ -397,6 +402,11 @@
           "best-practices": 100,
           "seo": 100
         }
+      },
+      "reportScreenshot": {
+        "file": "website-home-desktop-lighthouse.png",
+        "source": "website-home-desktop-1.html",
+        "run": 1
       }
     },
     {
@@ -573,6 +583,11 @@
           "best-practices": 100,
           "seo": 100
         }
+      },
+      "reportScreenshot": {
+        "file": "website-registration-mobile-lighthouse.png",
+        "source": "website-registration-mobile-1.html",
+        "run": 1
       }
     },
     {
@@ -731,6 +746,11 @@
           "best-practices": 100,
           "seo": 100
         }
+      },
+      "reportScreenshot": {
+        "file": "website-registration-desktop-lighthouse.png",
+        "source": "website-registration-desktop-1.html",
+        "run": 1
       }
     },
     {
@@ -995,6 +1015,11 @@
           "best-practices": 100,
           "seo": 50
         }
+      },
+      "reportScreenshot": {
+        "file": "backoffice-dashboard-mobile-lighthouse.png",
+        "source": "backoffice-dashboard-mobile-1.html",
+        "run": 1
       }
     },
     {
@@ -1206,6 +1231,11 @@
           "best-practices": 100,
           "seo": 50
         }
+      },
+      "reportScreenshot": {
+        "file": "backoffice-dashboard-desktop-lighthouse.png",
+        "source": "backoffice-dashboard-desktop-1.html",
+        "run": 1
       }
     }
   ],

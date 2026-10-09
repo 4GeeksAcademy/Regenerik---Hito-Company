@@ -1,13 +1,115 @@
-# Resultados de la auditoria Brasaland
+# REPORT - Mejoras de rendimiento
 
 Fecha de la serie comparable: 2026-10-09, 23:06-23:17 UTC.
 Se conservan las mismas tres URLs y los mismos perfiles de dispositivo.
 Resultados: medianas de tres pasadas. Protocolo y excepcion de arranque:
 [AUDIT.md](AUDIT.md).
 
-## Puntuaciones Lighthouse
+## Resumen
+
+- Frontends auditados: website corporativo y backoffice existentes.
+- Paginas medidas: http://127.0.0.1:8080/, http://127.0.0.1:8080/application.html
+  y http://127.0.0.1:8080/uis/backoffice/, en Mobile y Desktop.
+- Cambios principales: imagen WebP responsiva, CSS compilado, fuentes locales,
+  carga inicial estable, peticion de perfil eliminada y mejoras de accesibilidad.
+- Componente extraido: [BrasalandStatusActions](uis/shared/status-actions.js).
+- Linea base: `b4fedef`; implementacion de optimizaciones: `3b94f38`.
+
+## Correcciones aplicadas
+
+### Correccion 1 - Imagen y CSS publicos
+
+- Problemas originales: PNG pesado y compilador Tailwind remoto bloqueante.
+- Causas raiz: un recurso de 2,964,476 bytes para todos los anchos y estilos
+  generados en cada navegador en vez de compilados previamente.
+- Archivos modificados: [index.html](index.html), [application.html](application.html),
+  [package.json](package.json), [package-lock.json](package-lock.json),
+  [tailwind.config.js](tailwind.config.js), [public.css](uis/web/public.css),
+  [public.min.css](uis/web/public.min.css), [build-frontend-assets.mjs](scripts/build-frontend-assets.mjs)
+  y tres WebP en `uis/web/assets/`.
+- Cambio realizado: eliminar Play CDN, compilar las clases existentes, conservar
+  la imagen original y ofrecer variantes WebP con proporciones reales y prioridad alta.
+- Verificacion funcional: `npm run build:frontends`, imagen decodificada, ausencia
+  de desbordamiento y formulario dependiente comprobados en 412 y 1350 px.
+- Commit: `3b94f38` (paquete de cambios, no commit individual por recurso).
+- Medicion antes: portada movil Performance 72, LCP 16.356 s, FCP 2.198 s;
+  registro movil Performance 96, LCP 2.177 s.
+- Medicion despues: portada movil Performance 100, LCP 1.204 s, FCP 0.754 s;
+  registro movil Performance 100, LCP 0.996 s.
+- Atribucion: mejora del paquete publico; no hay medicion aislada WebP frente a CSS.
+
+### Correccion 2 - Estabilidad y carga del dashboard
+
+- Problemas originales: CLS alto, fuentes bloqueantes, perfil repetido y overflow movil.
+- Causas raiz: se pintaba el login intermedio, `me.profile` se solicitaba de nuevo,
+  menu sin wrap y contenedores grid que adoptaban el ancho intrinseco de la tabla.
+- Archivos modificados: [app.js](uis/backoffice/app.js), [index.html](uis/backoffice/index.html),
+  [styles.css](uis/backoffice/styles.css), [build-frontend-assets.mjs](scripts/build-frontend-assets.mjs)
+  y fuentes/licencias en `uis/backoffice/assets/`.
+- Cambio realizado: estado inicial `aria-busy`, fuentes locales con preload,
+  reutilizacion del perfil, menu flexible y scroll contenido de tabla.
+- Verificacion funcional: dashboard real con 15 proveedores; login/logout,
+  filtros, tarifa editada/restaurada, CSV/exportacion y perfil comprobados con Playwright.
+- Commit: `3b94f38`.
+- Medicion antes: movil Performance 79, LCP 2.457 s, CLS 0.307; tres peticiones
+  de inicializacion y desbordamiento de documento.
+- Medicion despues: movil Performance 99, LCP 1.861 s, CLS 0.011; dos peticiones
+  y sin desbordamiento de documento. TBT pasa de 0 a 17 ms, no se oculta ese coste.
+- Atribucion: paquete interno medido; contribucion individual de fuentes al CLS no aislada.
+
+### Correccion 3 - Accesibilidad y SEO apropiado
+
+- Problemas originales: contraste insuficiente, selects/fecha/tarifas sin nombre,
+  falta de viewport y de metadescripciones publicas.
+- Archivos modificados: [application.html](application.html), [index.html](index.html),
+  [tailwind.config.js](tailwind.config.js), [supplier-renderer.js](uis/backoffice/supplier-renderer.js),
+  [supplier-renderer.test.js](uis/backoffice/__tests__/supplier-renderer.test.js)
+  e [index.html del dashboard](uis/backoffice/index.html).
+- Cambio realizado: nombres accesibles, autocomplete, viewport, contraste,
+  descripciones y `noindex, nofollow` del panel interno.
+- Verificacion funcional: formulario y tarifa siguen funcionando; nombres
+  accesibles comprobados por pruebas y Lighthouse. No se cambiaron sus reglas de negocio.
+- Commit: `3b94f38`.
+- Medicion antes: Accessibility portada 92, registro 77 y dashboard 93;
+  SEO publico 91/90 y SEO interno 90.
+- Medicion despues: Accessibility 100 en las seis combinaciones, SEO publico 100
+  y SEO interno 50 por exclusion intencionada de buscadores.
+
+### Reparacion previa - Arranque del dashboard
+
+- Problema y causa: colision entre funciones globales y declaraciones `const`,
+  impedia autenticar/renderizar. No era una optimizacion de un dashboard funcional.
+- Archivos: [utils.js](uis/backoffice/utils.js) y [utils.test.js](uis/backoffice/__tests__/utils.test.js).
+- Cambio: encapsular auxiliares con IIFE, conservando `window.BackofficeUtils` y CommonJS.
+- Verificacion: prueba de colision de declaraciones y dashboard real autenticado.
+- Commit: `b4fedef`. Medicion previa funcional: **N/D**; estado roto en `audit/blocked/`.
+  La serie `before` empieza despues de esta reparacion minima.
+
+## Refactorizacion
+
+- Casos de duplicacion identificados: **2**, detallados en [AUDIT.md](AUDIT.md).
+- Abstraccion implementada: componente DOM `BrasalandStatusActions.render` para
+  acciones de reintento/enlace; el resumen de incidencias queda como segundo candidato.
+- Archivos que lo reutilizan: [uis/web/app.js](uis/web/app.js) y
+  [uis/backoffice/app.js](uis/backoffice/app.js); ambos HTML cargan el script compartido.
+- Distribucion: [uis/Dockerfile](uis/Dockerfile) incluye `uis/shared`.
+- Prueba: `npm run check:frontends` comprueba un solo bloque por estado,
+  callback unico y carga en ambas consolas; Docker construye correctamente.
+- Commit: `3b94f38`. Mejora de Lighthouse atribuible al componente: **N/D**;
+  el beneficio demostrado es mantenibilidad, no velocidad.
+
+## Comparacion Lighthouse
 
 Cada celda expresa `antes -> despues`.
+
+| Frontend / URL / modo | Performance antes | Performance despues | Diferencia (puntos) |
+| --- | --- | --- | --- |
+| Website `/`, Mobile | 72 | 100 | +28 |
+| Website `/`, Desktop | 85 | 100 | +15 |
+| Website `/application.html`, Mobile | 96 | 100 | +4 |
+| Website `/application.html`, Desktop | 100 | 100 | 0 |
+| Backoffice `/uis/backoffice/`, Mobile | 79 | 99 | +20 |
+| Backoffice `/uis/backoffice/`, Desktop | 86 | 100 | +14 |
 
 | Pagina | Dispositivo | Performance | Accessibility | Best Practices | SEO |
 | --- | --- | --- | --- | --- | --- |
@@ -73,7 +175,47 @@ Performance inicial del dashboard movil fue 79, 72 y 79.
   capturas finales revisadas. La tabla conserva su scroll horizontal propio.
 - `docker build -t brasaland-perf-interfaces uis`: correcto, incluye `uis/shared`.
 - Las auditorias finales verifican dashboard autenticado y URL sin redireccion
-  a login; cada fase conserva seis capturas completas.
+  a login; cada fase conserva seis capturas completas y seis capturas de resultados Lighthouse.
+
+## Uso del agente
+
+- Agente: GitHub Copilot, utilizado para ambos frontends.
+- Skill utilizada: **ninguna** de las tres skills externas opcionales; no se
+  instalo `core-web-vitals`, `performance` ni `web-perf`. No se declara uso inexistente.
+- Herramientas utilizadas: Lighthouse por API, Chromium/Playwright y CDP para
+  cache, navegacion, red y comprobacion de funciones. No se uso la pestana DevTools manual
+  ni Chrome DevTools MCP; las capturas son de los reportes HTML de Lighthouse.
+- Hallazgos comprobados: PNG pesado, Play CDN bloqueante, colision global,
+  perfil duplicado, cambios de layout y controles sin nombre accesible.
+- Cambios propuestos y aplicados: los documentados en las fichas anteriores.
+  El segundo candidato de reutilizacion no se implemento. No se sugirio una
+  correccion de hidratacion para HTML estatico ni una reescritura de arquitectura.
+
+## Conclusion
+
+- Mayor mejora observada: portada movil, LCP 16.356 -> 1.204 s y +28 puntos
+  Performance, con el paquete de imagen responsiva y CSS compilado. La imagen
+  era el recurso dominante, pero no se puede asignar una fraccion de la mejora
+  a cada cambio sin pasadas aisladas.
+- En el dashboard, CLS baja de 0.307 a 0.011 y mejora la carga sin cambiar los
+  15 proveedores; la interfaz deja de desbordar el documento en movil.
+- Metricas que no mejoraron: TBT movil interno sube a 17 ms y bytes internos
+  aumentan 5.1%; SEO interno baja intencionadamente. INP queda **N/D**.
+- Aprendizaje: medir con cache fria y sesion valida evita atribuir al codigo
+  mejoras aparentes por cache o por haber auditado un login. Compartir un
+  componente demuestra mantenibilidad, no automaticamente rendimiento.
+
+### Limites del historial y del ciclo por correccion
+
+La entrega original tiene una linea base y un commit agrupado de optimizaciones.
+No se ejecutaron pasadas Lighthouse intermedias por cada correccion ni se crearon
+commits separados para imagen, CSS y layout: esas mediciones son **N/D**.
+El diagnostico en formato `AUDIT.md` se versiono con el informe final, no en el
+primer commit. Por tanto, la secuencia historica no cumple literalmente los
+pasos 03.4 y 05.4 de la rubrica ampliada. No se reescribe el historial publicado
+ni se inventan tiempos o commits para ocultarlo. Las fichas permiten revisar
+los cambios reales; para atribucion individual se requieren nuevas pruebas
+controladas, identificadas como retrospectivas y separadas de la serie original.
 
 ## Reproduccion en Linux / Codespaces
 
@@ -108,6 +250,18 @@ npm test -- --runInBand
 npm run check:frontends
 npm run audit:frontends -- after
 ```
+
+Para regenerar solamente las capturas de resultados, sin nueva auditoria ni API:
+
+```bash
+npm run audit:frontends -- before --capture-reports
+npm run audit:frontends -- after --capture-reports
+```
+
+Este modo abre los HTML originales desde el servidor 8080. `summary.json`
+registra la pasada de origen en `reportScreenshot`. Los PNG con sufijo
+`-lighthouse.png` muestran una pasada concreta, no una combinacion artificial
+de medianas; estas se consultan en las tablas y resumenes.
 
 Los scripts crean usuarios temporales con claves aleatorias y los eliminan al
 terminar. Deben ejecutarse contra la API de prueba, nunca contra produccion.
@@ -147,3 +301,9 @@ La entrega se versiona en `perf/auditoria-lighthouse`, en el mismo repositorio
 de empresa; no se crea un repositorio nuevo. El remoto de empresa configurado es
 `origin` (`4GeeksAcademy/Regenerik---Hito-Company`); `fork` es una copia personal
 distinta y no se sustituye por ella para cumplir la entrega.
+
+URL del repositorio de empresa:
+https://github.com/4GeeksAcademy/Regenerik---Hito-Company
+
+URL de la rama entregada:
+https://github.com/4GeeksAcademy/Regenerik---Hito-Company/tree/perf/auditoria-lighthouse
