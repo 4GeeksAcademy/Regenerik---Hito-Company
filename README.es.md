@@ -21,11 +21,13 @@ Este repositorio es la **plantilla de inicio** para los proyectos transversales.
 
 ## Estado actual de la plantilla
 
-Actualmente el repositorio ofrece una **estructura base de carpetas y documentación**, pero todavía no incluye aplicaciones ejecutables ni scripts globales en la raíz.
+Este fork ya contiene código ejecutable además de la estructura original de la plantilla:
 
-- `CONTEXT.md` es un placeholder y debe sustituirse por el contexto de la empresa asignada.
-- No existe todavía un `AGENTS.md` en la raíz.
-- Existe metadata del paquete compartido en `packages/shared/package.json` (`@repo/shared-types`), pero aún no hay runner de workspace en raíz.
+- `services/api` contiene una API FastAPI para autenticación, perfiles, proveedores, análisis de incidentes e inventario.
+- `uis/web` y `uis/backoffice` son interfaces HTML/CSS/JavaScript estáticas; no son aplicaciones Next.js.
+- El inventario usa SQLModel/PostgreSQL; TinyDB conserva usuarios, perfiles y proveedores.
+- `packages/shared` contiene tipos TypeScript y lógica Python compartida; no hay un workspace npm raíz.
+- Las configuraciones locales se mantienen en `.env` ignorados por Git. Consulta [la guía de la API](services/api/README.es.md) antes de arrancar el backend.
 
 ---
 
@@ -61,6 +63,19 @@ ai-engineering-company-project-monorepo/
 3. **Reemplaza** `CONTEXT.md` con el contexto completo de tu empresa asignada.
 4. **Revisa** los `README.md` de cada carpeta raíz para entender responsabilidades (`uis/`, `services/`, `data/`, `skills/`, etc.).
 5. **Empieza a implementar** entregables por hito en `uis/` y `services/`, reutilizando `packages/shared/` y `data/` según corresponda.
+
+---
+
+## Entorno local con Docker
+
+Compose ejecuta `uis/web` y `uis/backoffice` en un único contenedor Nginx y la API FastAPI en otro contenedor. Para iniciarlo, crea el archivo raíz `.env` a partir de `.env.example` y configura `AUTH_SECRET_KEY` y `DATABASE_URL` con valores válidos. PostgreSQL no se incluye en Compose; `DATABASE_URL` debe apuntar a una instancia accesible desde el contenedor.
+
+```bash
+docker compose config
+docker compose up --build
+```
+
+Abre `http://localhost:3000` para el sitio, `http://localhost:3001` para el backoffice, `http://localhost:8000/health` para la API y `http://localhost:8000/docs` para Swagger. Los cambios en las interfaces se sirven mediante bind mounts y Uvicorn recarga la API al detectar cambios.
 
 ---
 

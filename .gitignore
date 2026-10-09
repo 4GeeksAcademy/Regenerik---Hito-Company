@@ -9,11 +9,15 @@ venv/
 
 # Environment
 .env
+.env.*
+!.env.example
 .env.local
 
 # Data (runtime)
 results.csv
 services/api/data/incidents.json
+services/api/data/auth.json
+services/api/data/local/
 
 # OS
 .DS_Store
